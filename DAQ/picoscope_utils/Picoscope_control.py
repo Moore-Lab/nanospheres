@@ -1,0 +1,5 @@
+"""
+Class for controlling picoscope
+"""
+
+
