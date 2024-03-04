@@ -27,14 +27,17 @@ class PicoScope:
         self._sampleInterval = sampleInterval
         self._sampleUnit = sampleUnit
         self._totalSamples = totalSamples
+        self.numChannels = len(channels)
 
         self.open()
         self.setSampleinterval(sampleInterval)
         self.setSampleunits(sampleUnit)
         self.setTotalsamples(totalSamples)
-        for channel in channels:
+        for cn, channel in enumerate(channels):
             self.setChannel(channel = channel)
-            self.setBuffersize(channel = channel, buffersize = buffersize)
+            # Create buffers ready for assigning pointers for data collection
+            self.bufferMax = np.zeros(shape=(self.numChannels, self._buffersize), dtype=np.int16)
+            self.setBuffersize(channel = channel, cn = cn)
     
     def open(self):
         self.chandle = ctypes.c_int16()
@@ -45,7 +48,7 @@ class PicoScope:
         self.status["openunit"] = ps.ps4000aOpenUnit(ctypes.byref(self.chandle), None)
         assert_pico_ok(self.status["openunit"])
 
-    def setChannel(self, channel = "A", channel_range = 7, analogue_offset = 0.0):
+    def setChannel(self, channel = "A", channel_range = 6, analogue_offset = 0.0):
         enabled = 1
         disabled = 0
         self.status["setCh"+channel] = ps.ps4000aSetChannel(self.chandle,
@@ -56,29 +59,28 @@ class PicoScope:
                                                 analogue_offset)
         assert_pico_ok(self.status["setCh"+channel])
 
-    def setBuffersize(self, channel, buffersize):
-
-        # Create buffers ready for assigning pointers for data collection
-        bufferMax = np.zeros(shape=buffersize, dtype=np.int16)
-        self._bufferMax = bufferMax
+    def setBuffersize(self, channel, cn):
         memory_segment = 0
 
         self.status["setDataBuffers"+channel] = ps.ps4000aSetDataBuffers(self.chandle,
                                                             ps.PS4000A_CHANNEL['PS4000A_CHANNEL_'+channel],
-                                                            bufferMax.ctypes.data_as(ctypes.POINTER(ctypes.c_int16)),
+                                                            self.bufferMax[cn].ctypes.data_as(ctypes.POINTER(ctypes.c_int16)),
                                                             None,
-                                                            buffersize,
+                                                            self._buffersize,
                                                             memory_segment,
                                                             ps.PS4000A_RATIO_MODE['PS4000A_RATIO_MODE_NONE'])
         assert_pico_ok(self.status["setDataBuffers"+channel])
     
     def setSampleinterval(self, sampleInterval):
+        self._sampleInterval = sampleInterval
         self.sampleIntervalC = ctypes.c_int32(sampleInterval)
 
     def setSampleunits(self, sampleUnit):
+        self._sampleUnit = sampleUnit
         self.sampleUnits = ps.PS4000A_TIME_UNITS['PS4000A_'+sampleUnit]
 
     def setTotalsamples(self, totalSamples):
+        self._totalSamples = totalSamples
         totalSamples = totalSamples
 
     def makeCfunctionpointer(self):
@@ -87,7 +89,8 @@ class PicoScope:
             self.wasCalledBack = True
             destEnd = self.nextSample + noOfSamples
             sourceEnd = startIndex + noOfSamples
-            self.bufferCompleteA[self.nextSample:destEnd] = self._bufferMax[startIndex:sourceEnd]
+            for n in range(self.numChannels):
+                self.buffersComplete[n][self.nextSample:destEnd] = self.bufferMax[n][startIndex:sourceEnd]
             self.nextSample += noOfSamples
             if autoStop:
                 self.autoStopOuter = True
@@ -95,8 +98,8 @@ class PicoScope:
         # Convert the python function into a C function pointer.
         self.cFuncPtr = ps.StreamingReadyType(streaming_callback)
 
-    def Stream(self, totalSamples):
-        self.bufferCompleteA = np.zeros(shape=totalSamples, dtype=np.int16)
+    def Stream(self):
+        self.buffersComplete = np.zeros(shape=(self.numChannels, self._totalSamples), dtype=np.int16)
         self.nextSample = 0
         self.autoStopOuter = False
         self.wasCalledBack = False
@@ -111,7 +114,7 @@ class PicoScope:
                                                         ctypes.byref(self.sampleIntervalC),
                                                         self.sampleUnits,
                                                         maxPreTriggerSamples,
-                                                        totalSamples,
+                                                        self._totalSamples,
                                                         autoStopOn,
                                                         downsampleRatio,
                                                         ps.PS4000A_RATIO_MODE['PS4000A_RATIO_MODE_NONE'],
@@ -121,7 +124,7 @@ class PicoScope:
         #nextSample = 0
         #autoStopOuter = False
 
-        while self.nextSample < totalSamples and not self.autoStopOuter:
+        while self.nextSample < self._totalSamples and not self.autoStopOuter:
             self.wasCalledBack = False
             self.status["getStreamingLastestValues"] = ps.ps4000aGetStreamingLatestValues(self.chandle, self.cFuncPtr, None)
             if not self.wasCalledBack:
@@ -129,8 +132,24 @@ class PicoScope:
                 # again.
                 time.sleep(0.01)
 
+    #def plot(self, buffers):
+    #    for buffer in buffers:
+    #        plt.plot(buffer)
+    #        plt.show()
+
+    def stop(self):            
+        # Stop the scope
+        # handle = chandle
+        self.status["stop"] = ps.ps4000aStop(self.chandle)
+        assert_pico_ok(self.status["stop"])
+
+    def close(self):
+        # Disconnect the scope
+        # handle = chandle
+        self.status["close"] = ps.ps4000aCloseUnit(self.chandle)
+        assert_pico_ok(self.status["close"])
+
     def plot(self, buffer):
-        
         plt.plot(buffer)
         plt.show()
 
@@ -138,9 +157,8 @@ class PicoScope:
         with h5py.File(filename, 'w') as f:
             f['dataset'] = buffer
 
-
-pico = PicoScope(channels = ["A"], buffersize = 1000, sampleInterval = 1000, sampleUnit = "US", totalSamples = 10000)
-pico.Stream(pico._totalSamples)
-pico.plot(pico.bufferCompleteA)
-filename = "C:/Users/yalem/OneDrive/Documents/Picoscope Tests/Pico Control/test2.hdf5"
-pico.save2HDF5(filename, pico.bufferCompleteA)
+pico = PicoScope(channels = ["A", "B"], buffersize = 10000, sampleInterval = 100, sampleUnit = "US", totalSamples = 10000)
+pico.Stream()
+pico.plot(pico.buffersComplete[0])
+pico.stop()
+pico.close()
