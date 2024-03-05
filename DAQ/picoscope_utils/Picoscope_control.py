@@ -107,7 +107,7 @@ class PicoScope:
         #Begin streaming
         # We are not triggering:
         maxPreTriggerSamples = 0
-        autoStopOn = 1
+        autoStopOn = 0
         # No downsampling:
         downsampleRatio = 1
         self.status["runStreaming"] = ps.ps4000aRunStreaming(self.chandle,
@@ -157,8 +157,8 @@ class PicoScope:
         with h5py.File(filename, 'w') as f:
             f['dataset'] = buffer
 
-pico = PicoScope(channels = ["A", "B"], buffersize = 10000, sampleInterval = 100, sampleUnit = "US", totalSamples = 10000)
-pico.Stream()
-pico.plot(pico.buffersComplete[0])
-pico.stop()
-pico.close()
+#pico = PicoScope(channels = ["A", "B"], buffersize = 10000, sampleInterval = 100, sampleUnit = "US", totalSamples = 10000)
+#pico.Stream()
+#pico.plot(pico.buffersComplete[0])
+#pico.stop()
+#pico.close()

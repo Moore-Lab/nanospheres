@@ -170,6 +170,8 @@ cFuncPtr = ps.StreamingReadyType(streaming_callback)
 while nextSample < totalSamples and not autoStopOuter:
     wasCalledBack = False
     status["getStreamingLastestValues"] = ps.ps4000aGetStreamingLatestValues(chandle, cFuncPtr, None)
+    if wasCalledBack:
+        print(bufferComplete[0][-10:])
     if not wasCalledBack:
         # If we weren't called back by the driver, this means no data is ready. Sleep for a short while before trying
         # again.
