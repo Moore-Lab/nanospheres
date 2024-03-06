@@ -156,7 +156,7 @@ def streaming_callback(handle, noOfSamples, startIndex, overflow, triggerAt, tri
     #bufferCompleteA[nextSample:destEnd] = bufferAMax[startIndex:sourceEnd]
     #bufferCompleteB[nextSample:destEnd] = bufferBMax[startIndex:sourceEnd]
     for n in range(2):
-        bufferComplete[n][nextSample:destEnd] = bufferMax[n][startIndex:sourceEnd]
+         bufferComplete[n][nextSample:destEnd] = bufferMax[n][startIndex:sourceEnd]
     
     nextSample += noOfSamples
     if autoStop:

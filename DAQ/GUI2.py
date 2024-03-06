@@ -50,11 +50,12 @@ class MainWindow(QMainWindow):
         self.btn2 = QPushButton("yellow")
         self.btn2.clicked.connect(self.btn2_click)
 
-        btn3 = QPushButton("purple")
+        self.btn3 = QPushButton("purple")
+        self.btn3.clicked.connect(self.btn3_click)
 
         layout2.addWidget(self.btn1)
         layout2.addWidget(self.btn2)
-        layout2.addWidget(btn3)
+        layout2.addWidget(self.btn3)
 
         layout1.addLayout( layout2 )
 
@@ -77,12 +78,12 @@ class MainWindow(QMainWindow):
 
         #self.show()
 
-        self.pico = pc.PicoScope(channels = ["A"], buffersize = 100, sampleInterval = 1000, sampleUnit = "US", totalSamples = 100)
+        self.pico = pc.PicoScope(channels = ["A"], buffersize = 100, sampleInterval = 1000, sampleUnit = "US", totalSamples = 1000)
 
 
     def update_plot(self):
         # Drop off the first y element, append a new one.
-        self.ydata = self.pico.buffersComplete[0]
+        self.ydata = self.pico.buffersComplete[0][-100:]
         self.xdata = np.linspace(0, 0.1, 100)
 
         # Note: we no longer need to clear the axis.
@@ -107,16 +108,19 @@ class MainWindow(QMainWindow):
         if self.button_is_checked:
             self.timer = QtCore.QTimer()
             self.timer.setInterval(100)
-            self.timer.timeout.connect(self.Stream)
+            self.timer.timeout.connect(self.update_plot)
             self.timer.start()
         else:
             self.timer.stop()
 
-    def Stream(self):
-        self.pico.Stream()
-        self.update_plot()
+    #def Stream(self):
+    #    self.update_plot()
 
     def btn2_click(self):
+        self.pico.Stream()
+
+    
+    def btn3_click(self):
         self.pico.stop()
         self.pico.close()
 
