@@ -82,6 +82,7 @@ class MainWindow(QMainWindow):
 
         layout1 = QHBoxLayout()
         layout2 = QVBoxLayout()
+        layout3 = QVBoxLayout()
 
         layout1.setContentsMargins(0,0,0,0)
         layout1.setSpacing(20)
@@ -108,6 +109,57 @@ class MainWindow(QMainWindow):
         self.canvas = MplCanvas(self, width=5, height=4, dpi=100)
         layout1.addWidget(self.canvas)
 
+        l3_label1 = QLabel("Total time")
+        l3_label2 = QLabel("Sampling interval")
+        l3_label3 = QLabel("Buffer Size")
+
+        l3_double1 = QSpinBox()
+        l3_double1.setMinimum(1)
+        l3_double1.setMaximum(99999)
+        l3_double1.setSingleStep(1)
+        l3_double1.valueChanged.connect(self.totalSample_changed)
+
+        l3_double2 = QSpinBox()
+        l3_double2.setMinimum(1)
+        l3_double2.setMaximum(999)
+        l3_double2.setSingleStep(1)
+        
+        l3_double3 = QSpinBox()
+        l3_double3.setMinimum(1)
+        l3_double3.setMaximum(999)
+        l3_double3.setSingleStep(1)
+
+        l3_drop1 = QComboBox()
+        l3_drop1.addItems(["s", "ms", "us", "ns"])
+
+        l3_drop2 = QComboBox()
+        l3_drop2.addItems(["s", "ms", "us", "ns"])
+
+        l3_drop3 = QComboBox()
+        l3_drop3.addItems(["s", "ms", "us", "ns"])
+
+        layout4 = QHBoxLayout()
+        layout5 = QHBoxLayout()
+        layout6 = QHBoxLayout()
+
+        layout4.addWidget(l3_double1)
+        layout4.addWidget(l3_drop1)
+
+        layout5.addWidget(l3_double2)
+        layout5.addWidget(l3_drop2)
+
+        layout6.addWidget(l3_double3)
+        layout6.addWidget(l3_drop3)
+
+        layout3.addWidget(l3_label1)
+        layout3.addLayout(layout4)
+        layout3.addWidget(l3_label2)
+        layout3.addLayout(layout5)
+        layout3.addWidget(l3_label3)
+        layout3.addLayout(layout6)
+
+        layout1.addLayout(layout3)
+
         widget = QWidget()
         widget.setLayout(layout1)
         self.setCentralWidget(widget)
@@ -127,8 +179,14 @@ class MainWindow(QMainWindow):
         self.threadpool = QThreadPool()
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
-        self.pico = pc.PicoScope(channels = ["A"], buffersize = 100, sampleInterval = 1000, sampleUnit = "US", totalSamples = 20000)
+        self.totalSamples = 3000
+        self.sampleInterval = 1000
+        self.buffersize = 100
 
+        self.PicoConnect()
+
+    def PicoConnect(self):
+        self.pico = pc.PicoScope(channels = ["A"], buffersize = self.buffersize, sampleInterval = self.sampleInterval, sampleUnit = "US", totalSamples = self.totalSamples)
 
     def update_plot(self):
         # Drop off the first y element, append a new one.
@@ -182,6 +240,9 @@ class MainWindow(QMainWindow):
     def btn3_click(self):
         self.pico.stop()
         self.pico.close()
+
+    def totalSample_changed(self, i):
+        self.totalSamples = i
 
 app = QApplication(sys.argv)
 
