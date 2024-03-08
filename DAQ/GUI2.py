@@ -1,24 +1,70 @@
 import sys
-import random
+import traceback
 import numpy as np
-from PyQt6 import QtCore
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton
-from PyQt6.QtGui import QPalette, QColor
+from PyQt6.QtGui import *
+from PyQt6.QtWidgets import *
+from PyQt6.QtCore import *
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 import picoscope_utils.Picoscope_control as pc
 
-class Color(QWidget):
+class WorkerSignals(QObject):
+    '''
+    Defines the signals available from a running worker thread.
 
-    def __init__(self, color):
-        super(Color, self).__init__()
-        self.setAutoFillBackground(True)
+    Supported signals are:
 
-        palette = self.palette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(color))
-        self.setPalette(palette)
+    finished
+        No data
+
+    error
+        tuple (exctype, value, traceback.format_exc() )
+
+    result
+        object data returned from processing, anything
+
+    progress
+        int indicating % progress
+
+    '''
+    finished = pyqtSignal()
+    error = pyqtSignal(tuple)
+    result = pyqtSignal(object)
+    progress = pyqtSignal(list)
+
+class Worker(QRunnable):
+    '''
+    Worker thread
+
+    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
+
+    :param callback: The function callback to run on this worker thread. Supplied args and
+                     kwargs will be passed through to the runner.
+    :type callback: function
+    :param args: Arguments to pass to the callback function
+    :param kwargs: Keywords to pass to the callback function
+
+    '''
+
+    def __init__(self, fn, *args, **kwargs):
+        super(Worker, self).__init__()
+
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+
+    @pyqtSlot()
+    def run(self):
+        '''
+        Initialise the runner function with passed args, kwargs.
+        '''
+
+        # Retrieve args/kwargs here; and fire processing using them
+
+        result = self.fn(*self.args, **self.kwargs)
 
 class MplCanvas(FigureCanvas):
 
@@ -42,15 +88,15 @@ class MainWindow(QMainWindow):
 
         self.button_is_checked = False
 
-        self.btn1 = QPushButton("red")
+        self.btn1 = QPushButton("Show")
         self.btn1.setCheckable(True)
         self.btn1.clicked.connect(self.btn1_click)
         self.btn1.setChecked(self.button_is_checked)
 
-        self.btn2 = QPushButton("yellow")
+        self.btn2 = QPushButton("Run")
         self.btn2.clicked.connect(self.btn2_click)
 
-        self.btn3 = QPushButton("purple")
+        self.btn3 = QPushButton("Close")
         self.btn3.clicked.connect(self.btn3_click)
 
         layout2.addWidget(self.btn1)
@@ -78,20 +124,24 @@ class MainWindow(QMainWindow):
 
         #self.show()
 
-        self.pico = pc.PicoScope(channels = ["A"], buffersize = 100, sampleInterval = 1000, sampleUnit = "US", totalSamples = 1000)
+        self.threadpool = QThreadPool()
+        print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
+
+        self.pico = pc.PicoScope(channels = ["A"], buffersize = 100, sampleInterval = 1000, sampleUnit = "US", totalSamples = 20000)
 
 
     def update_plot(self):
         # Drop off the first y element, append a new one.
-        self.ydata = self.pico.buffersComplete[0][-100:]
-        self.xdata = np.linspace(0, 0.1, 100)
-
+        self.ydata = self.pico.buffersComplete[0][self.i*100:self.i*100+1000]
+        self.xdata = np.linspace(0, 1, 1000) 
         # Note: we no longer need to clear the axis.
         if self._plot_ref is None:
+            
             # First time we have no plot reference, so do a normal plot.
             # .plot returns a list of line <reference>s, as we're
             # only getting one we can take the first element.
             plot_refs = self.canvas.axes.plot(self.xdata, self.ydata, 'r')
+            self.canvas.axes.set_ylim(-20000, 20000)
             self._plot_ref = plot_refs[0]
         else:
             # We have a reference, we can use it to update the data for that line.
@@ -100,26 +150,35 @@ class MainWindow(QMainWindow):
         # Trigger the canvas to update and redraw.
         self.canvas.draw()
 
+    def stepi(self):
+        self.i += 1
+
     def btn1_click(self):
         self.button_is_checked = self.btn1.isChecked()
-        print("Clicked!")
-        print(self.btn1.isChecked())
-        # Setup a timer to trigger the redraw by calling update_plot.
+        print("Plotting!")
         if self.button_is_checked:
-            self.timer = QtCore.QTimer()
+            self.i = 0
+            self.timer = QTimer()
             self.timer.setInterval(100)
             self.timer.timeout.connect(self.update_plot)
+            self.timer.timeout.connect(self.stepi)
             self.timer.start()
         else:
             self.timer.stop()
+        
 
     #def Stream(self):
     #    self.update_plot()
 
     def btn2_click(self):
+        print('Streaming')
+        worker = Worker(self.Stream)
+        # Execute
+        self.threadpool.start(worker)
+
+    def Stream(self):
         self.pico.Stream()
 
-    
     def btn3_click(self):
         self.pico.stop()
         self.pico.close()
