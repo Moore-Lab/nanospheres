@@ -165,17 +165,19 @@ void pull(MultiStepper &steppers, AccelStepper &stepper1, AccelStepper &stepper2
     step_count[1] += positions[1];
 }
 
-void step_single(MultiStepper &steppers, AccelStepper &stepper1, AccelStepper &stepper2, long (&step_count)[2]) {
+void step_single(MultiStepper &steppers, AccelStepper &stepper1, AccelStepper &stepper2, const float dist[2], long (&step_count)[2]) {
     // step a single motor
     
-    delay(1000);
+    //delay(1000);
     
     // Total pull length will be (`pull_length` * 2) millimeters
     // Target pos in steps
     long positions[2];
-    positions[0] = -2 * mm_to_steps;
-    positions[1] = 0;
+    positions[0] = dist[0] * mm_to_steps;
+    positions[1] = dist[1] * mm_to_steps;
     pull_speed=1000;
+
+    Serial.println("args in func: " + String(positions[0]) + ", " + String(positions[1]));
 
     stepper1.setMaxSpeed(pull_speed);  // steps per second
     stepper2.setMaxSpeed(pull_speed);
@@ -201,8 +203,6 @@ String getValue(String data, char separator, int index)
     int strIndex[] = { 0, -1 };
     int maxIndex = data.length() - 1;
 
-    Serial.println("data: " + data);
-    Serial.println("sep: " + separator);
     for (int i = 0; i <= maxIndex && found <= index; i++) {
         if (data.charAt(i) == separator || i == maxIndex) {
             found++;
@@ -217,7 +217,7 @@ String getValue(String data, char separator, int index)
 // Main Program
 //
 
-String command, command_base, command_arg;
+String command, command_base, command_arg1, command_arg2;
 long step_count[2] = {0, 0};
 
 AccelStepper stepper1 = AccelStepper(MOTOR_INTERFACE_TYPE, PUL1_PIN, DIR1_PIN);
@@ -240,35 +240,35 @@ void loop() {
         command = Serial.readStringUntil('\n');
         command.trim();
         command_base = getValue(command, ':', 0);
-        command_arg = getValue(command, ':', 1);
+        command_arg1 = getValue(command, ':', 1);
+        command_arg2 = getValue(command, ':', 2);
     }
 
-    delay(5000);
-    Serial.println("command: " + command);
-    Serial.println("base: " + command_base);
-    Serial.println("command arg: " + command_arg);
+    Serial.println("Command: " + command_base + ", arg1: " + command_arg1 + ", arg2: " + command_arg2);
 
-
-    switch(get_command(command)) {
+    switch(get_command(command_base)) {
         case FLUSH:
             flush_steppers(steppers, stepper1, stepper2, step_count);
-            command = "stop";
+            command_base = "stop";
             break;
         case OSCILLATE:
             oscillate(steppers, stepper1, stepper2, cycles, step_count);
-            command = "stop";
+            command_base = "stop";
             break;
         case TAPER:
             taper(steppers, stepper1, stepper2, cycles, step_count);
-            command = "stop";
+            command_base = "stop";
             break;
         case PULL:
             pull(steppers, stepper1, stepper2, step_count);
-            command = "stop";
+            command_base = "stop";
             break;
         case STEP:
-            step_single(steppers, stepper1, stepper2, step_count);
-            command = "stop";
+             float dist[2];
+             dist[0] = command_arg1.toFloat();
+             dist[1] = command_arg2.toFloat();
+            step_single(steppers, stepper1, stepper2, dist, step_count);
+            command_base = "stop";
             break;
         case STOP:
             stop_steppers(stepper1, stepper2);
