@@ -117,10 +117,11 @@ class PicoScope:
         ps.ps4000aGetTimebase2(self.chandle, timebase, maxSamples, ctypes.byref(timeIntervalns), ctypes.byref(returnedMaxSamples), 0)
         return timeIntervalns, returnedMaxSamples
 
-    def triggeredCapture(self, preTriggerSamples, postTriggerSamples, timebase, maxSamples):
+    def triggeredCapture(self, preTriggerSamples, postTriggerSamples):
         
+        timebase = int(self._sampleInterval/12.5) - 1 ## 12.5 ns per sample for 4000A
         ## take triggered data
-        ps.ps4000RunBlock(self.chandle, preTriggerSamples, postTriggerSamples, timebase, None, 0, None, None)
+        ps.ps4000aRunBlock(self.chandle, preTriggerSamples, postTriggerSamples, timebase, None, 0, None, None)
 
         ready = ctypes.c_int16(0)
         check = ctypes.c_int16(0)
@@ -129,7 +130,7 @@ class PicoScope:
 
         overflow = ctypes.c_int16()
         cmaxSamples = ctypes.c_int32(self._buffersize)
-        ps.ps4000GetValues(self.chandle, 0, ctypes.byref(cmaxSamples), 0, 0, 0, ctypes.byref(overflow))
+        ps.ps4000aGetValues(self.chandle, 0, ctypes.byref(cmaxSamples), 0, 0, 0, ctypes.byref(overflow))
         
         maxADC = ctypes.c_int16(32767)
 
