@@ -28,6 +28,7 @@ class PicoScope:
         self._sampleUnit = sampleUnit
         self._totalSamples = totalSamples
         self.numChannels = len(channels)
+        self._ranges = {}
 
         self.open()
         self.setSampleinterval(sampleInterval)
@@ -51,6 +52,7 @@ class PicoScope:
     def setChannel(self, channel = "A", channel_range = 6, analogue_offset = 0.0):
         enabled = 1
         disabled = 0
+        self._ranges[channel] = channel_range
         self.status["setCh"+channel] = ps.ps4000aSetChannel(self.chandle,
                                                 ps.PS4000A_CHANNEL['PS4000A_CHANNEL_'+channel],
                                                 enabled,
@@ -97,6 +99,50 @@ class PicoScope:
 
         # Convert the python function into a C function pointer.
         self.cFuncPtr = ps.StreamingReadyType(streaming_callback)
+
+    def setTrigger(self, enable=1, source=0, thresh=1024, delay=0, type="RISING", auto_trig_delay=0):
+        ### set up the trigger
+        trig_dict = {"ABOVE": 0, "BELOW": 1, "RISING": 2, "FALLING": 3, "RISING_OR_FALLING": 4}
+        if not type in trig_dict:
+            print("Failed to set trigger: ", type)
+            return
+        ps.ps4000aSetSimpleTrigger(self.chandle, enable, source, thresh, trig_dict[type], delay, auto_trig_delay)
+
+    def getTimebase(self, samp_time, maxSamples):
+        ### get the timebase from the picoscope
+        ## sample time, samp_time in ns
+        timebase = int(samp_time/12.5) - 1 ## 12.5 ns per sample for 4000A
+        timeIntervalns = ctypes.c_float()
+        returnedMaxSamples = ctypes.c_int32()
+        ps.ps4000aGetTimebase2(self.chandle, timebase, maxSamples, ctypes.byref(timeIntervalns), ctypes.byref(returnedMaxSamples), 0)
+        return timeIntervalns, returnedMaxSamples
+
+    def triggeredCapture(self, preTriggerSamples, postTriggerSamples, timebase, maxSamples):
+        
+        ## take triggered data
+        ps.ps4000RunBlock(self.chandle, preTriggerSamples, postTriggerSamples, timebase, None, 0, None, None)
+
+        ready = ctypes.c_int16(0)
+        check = ctypes.c_int16(0)
+        while ready.value == check.value:
+            self.status["isReady"] = ps.ps4000aIsReady(self.chandle, ctypes.byref(ready))
+
+        overflow = ctypes.c_int16()
+        cmaxSamples = ctypes.c_int32(self._buffersize)
+        ps.ps4000GetValues(self.chandle, 0, ctypes.byref(cmaxSamples), 0, 0, 0, ctypes.byref(overflow))
+        
+        maxADC = ctypes.c_int16(32767)
+
+        outData = np.zeros_like(self.bufferMax)
+        for j,cn in enumerate(self._channels):
+            chRange = self._channels[cn]
+            outData[j,:] = adc2mV(self.bufferMax[j,:], chRange, maxADC)
+
+        outTime = np.linspace(0, (self.bufferMax - 1) * self._sampleInterval, cmaxSamples.value)
+
+        return outTime, outData
+
+
 
     def Stream(self):
         self.buffersComplete = np.zeros(shape=(self.numChannels, self._totalSamples), dtype=np.int16)
