@@ -131,7 +131,7 @@ class PicoScope:
         overflow = ctypes.c_int16()
         cmaxSamples = ctypes.c_int32(self._buffersize)
         ps.ps4000aGetValues(self.chandle, 0, ctypes.byref(cmaxSamples), 0, 0, 0, ctypes.byref(overflow))
-        
+          
         maxADC = ctypes.c_int16(32767)
 
         outData = np.zeros_like(self.bufferMax)
