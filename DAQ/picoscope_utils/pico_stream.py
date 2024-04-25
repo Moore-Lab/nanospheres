@@ -11,6 +11,8 @@ from picosdk.ps4000a import ps4000a as ps
 import matplotlib.pyplot as plt
 from picosdk.functions import adc2mV, assert_pico_ok
 import time
+import h5py
+import scipy.io as sio
 
 """
 Set parameters here
@@ -18,15 +20,15 @@ Set parameters here
 
 # Channel E does not work... apparently it isn't a legit Key
 
-channels = ['A']#['A', 'B', 'C', 'D', 'F', 'G', 'H']
-channel_ranges = [7]#[7, 7, 7, 7, 7, 7, 7]
-analogue_offsets = [0.0]#[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+channels = ['A', 'B', 'C', 'D', 'F', 'G', 'H']
+channel_ranges = [7, 7, 7, 7, 7, 7, 7]
+analogue_offsets = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 enabled = 1
 disabled = 0
 
 # Size of capture
-sizeOfOneBuffer = 10000000
+sizeOfOneBuffer = 1000000
 numBuffersToCapture = 1
 
 sample_interval = 1 # in us
@@ -36,7 +38,9 @@ total_length = totalSamples*sample_interval
 
 print('Total length: %s us' % total_length)
 
-downsample_plot = 100000
+downsample_plot = 1000
+
+total_iter = 5
 
 """
 End of set parameters
@@ -173,6 +177,14 @@ def stream():
 
     #print("Done grabbing values.")
 
+
+def save_data(filename, data):
+    with h5py.File(filename, 'w') as f:
+        f['dataset'] = data
+
+def save_data2(filename, data):
+    sio.savemat(filename, {'A':data})
+
 """
 End of functions
 """
@@ -206,30 +218,35 @@ bufferCompletel = np.zeros(shape=(len(channels), totalSamples), dtype=np.int16)
 start = time.time()
 nextSample = 0
 stream()
+#save_data('D:/Lab Data/Picoscope Test/1.hdf5', bufferCompletel)
 end = time.time()
 print((end-start)*10**6)
 print(((end-start)-total_length/10**6)/1)
 start = time.time()
 nextSample = 0
 stream()
+#save_data('D:/Lab Data/Picoscope Test/2.hdf5', bufferCompletel)
 end = time.time()
 print((end-start)*10**6)
 print(((end-start)-total_length/10**6)/1)
 start = time.time()
 nextSample = 0
 stream()
+#save_data('D:/Lab Data/Picoscope Test/3.hdf5', bufferCompletel)
 end = time.time()
 print((end-start)*10**6)
 print(((end-start)-total_length/10**6)/1)
 start = time.time()
 nextSample = 0
 stream()
+#save_data('D:/Lab Data/Picoscope Test/4.hdf5', bufferCompletel)
 end = time.time()
 print((end-start)*10**6)
 print(((end-start)-total_length/10**6)/1)
 start = time.time()
 nextSample = 0
 stream()
+#save_data('D:/Lab Data/Picoscope Test/5.hdf5', bufferCompletel)
 end = time.time()
 print((end-start)*10**6)
 print(((end-start)-total_length/10**6)/1)
