@@ -745,7 +745,7 @@ class CAEN_DT5740_Digitizer:
 	def _start_acquisition(self):
 		"""Start the acquisition in the board. The RUN LED will turn on."""
 		code = libCAENDigitizer.CAEN_DGTZ_SWStartAcquisition(self._get_handle())
-		libCAENDigitizer.CAEN_DGTZ_SendSWtrigger(self._get_handle())
+		#libCAENDigitizer.CAEN_DGTZ_SendSWtrigger(self._get_handle())
 		check_error_code(code)
 
 	def _stop_acquisition(self):
