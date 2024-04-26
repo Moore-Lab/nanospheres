@@ -656,7 +656,6 @@ class CAEN_DT5740_Digitizer:
 			Enable or disable group 2, i.e. channels 8, 9, ..., 15.
 		"""
 		
-		
 		mask = 0
 		for i,group in enumerate(group_list):
 			mask |= (1 if group else 0) << i
@@ -666,7 +665,7 @@ class CAEN_DT5740_Digitizer:
 		)
 		check_error_code(code)
 
-	def set_channel_DC_offset(self, channel:int, DAC:int=None, V:float=None):
+	def set_group_DC_offset(self, channel:int, DAC:int=None, V:float=None):
 		"""
 		Set the DC offset for a channel.
 		
@@ -691,14 +690,14 @@ class CAEN_DT5740_Digitizer:
 			if not isinstance(V, (int,float)) or not -1 <= V <= 1:
 				raise ValueError('`V` must be a float between -1 and 1.')
 			DAC = int((V+1)/2*(2**16-1))
-		code = libCAENDigitizer.CAEN_DGTZ_SetChannelDCOffset(
+		code = libCAENDigitizer.CAEN_DGTZ_SetGroupDCOffset(
 			self._get_handle(), 
 			c_uint32(channel), 
 			c_uint32(DAC),
 		)
 		check_error_code(code)
 
-	def get_channel_DC_offset(self, channel)->int:
+	def get_group_DC_offset(self, channel)->int:
 		"""Get the DC offset value for a channel.
 		
 		Arguments
@@ -706,10 +705,10 @@ class CAEN_DT5740_Digitizer:
 		channel: int
 			Number of channel.
 		"""
-		if not isinstance(channel, int) or not 0 <= channel < 16:
-			raise ValueError(f'`channel` must be 0, 1, ..., 15, received {repr(channel)}. ')
+		if not isinstance(channel, int) or not 0 <= channel < 4:
+			raise ValueError(f'`group` must be 0, 1, 2, 3, received {repr(channel)}. ')
 		value = c_uint32(0)
-		code = libCAENDigitizer.CAEN_DGTZ_GetChannelDCOffset(
+		code = libCAENDigitizer.CAEN_DGTZ_GetGroupDCOffset(
 			self._get_handle(), 
 			c_uint32(channel), 
 			byref(value),
@@ -717,25 +716,32 @@ class CAEN_DT5740_Digitizer:
 		check_error_code(code)
 		return value.value
 
-	def setup_trigger(self, acq_mode = 'sw_controlled', mode="ACQ_ONLY"):
+	def setup_trigger(self, group, thresh, mode="ACQ_ONLY", channel_mask=0b01010101):
 		""" Setup the trigger
 
 		Arguments
 		-----------
-
+		group -- channel group to apply to, must be 0,1,2,3
+		mode -- mode for that channel group, must be DISABLED, ACQ_ONLY, EXTOUT_ONLY, or "ACQ_AND_EXTOUT'
+		channel mask -- binary for which channels of the 8 are used in trigger: 
+						default 01010101 does only even channels, which is appropriate for front panel MCX
+						connectors
 		"""
-
-		self.set_acquisition_mode(acq_mode)
 
 		trig_mode = {"DISABLED": 0,
 			   		 "EXTOUT_ONLY": 2,
 					 "ACQ_ONLY": 1,
 					 "ACQ_AND_EXTOUT": 3}
 
+		if(group not in [0,1,2,3]):
+			raise ValueError('Group must be 0,1,2,3')
+
 		if(mode not in trig_mode.keys()):
 			raise ValueError('Trig mode must be DISABLED, ACQ_ONLY, EXTOUT_ONLY, or "ACQ_AND_EXTOUT')
 
-		libCAENDigitizer.CAEN_DGTZ_SetSWTriggerMode(self._get_handle(), trig_mode[mode])
+		libCAENDigitizer.CAEN_DGTZ_SetGroupSelfTrigger(self._get_handle(), trig_mode[mode], (1<<group))
+		libCAENDigitizer.CAEN_DGTZ_SetChannelGroupMask(self._get_handle(), group, channel_mask)
+		libCAENDigitizer.CAEN_DGTZ_SetGroupTriggerThreshold(self._get_handle(), group, thresh)
 
 	def _start_acquisition(self):
 		"""Start the acquisition in the board. The RUN LED will turn on."""
