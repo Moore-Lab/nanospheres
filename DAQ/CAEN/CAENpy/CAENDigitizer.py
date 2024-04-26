@@ -264,7 +264,6 @@ class CAEN_DT5740_Digitizer:
 		if self.get_acquisition_status()['acquiring now'] == True:
 			raise RuntimeError(f'The digitizer is already acquiring, cannot start a new acquisition.')
 		self._start_acquisition()
-		libCAENDigitizer.CAEN_DGTZ_SendSWtrigger(self._get_handle())
 		self.get_acquisition_status() # This makes it work better. Don't know why.
 	
 	def stop_acquisition(self):
@@ -716,7 +715,7 @@ class CAEN_DT5740_Digitizer:
 		check_error_code(code)
 		return value.value
 
-	def setup_trigger(self, group, thresh, mode="ACQ_ONLY", channel_mask=0b01010101):
+	def setup_trigger(self, group, thresh, mode="ACQ_ONLY", channel_mask=0b11111111):
 		""" Setup the trigger
 
 		Arguments
@@ -746,6 +745,7 @@ class CAEN_DT5740_Digitizer:
 	def _start_acquisition(self):
 		"""Start the acquisition in the board. The RUN LED will turn on."""
 		code = libCAENDigitizer.CAEN_DGTZ_SWStartAcquisition(self._get_handle())
+		libCAENDigitizer.CAEN_DGTZ_SendSWtrigger(self._get_handle())
 		check_error_code(code)
 
 	def _stop_acquisition(self):
