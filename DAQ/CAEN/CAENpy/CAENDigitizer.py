@@ -250,7 +250,7 @@ class CAEN_DT5740_Digitizer:
 			self._idn = f'CAEN {model} digitizer, serial number {serial_number}'
 		return self._idn
 	
-	def start_acquisition(self):
+	def start_acquisition(self, acq_time=0.1):
 		"""Puts the device into acquisition mode and runs all the required
 		configurations of the `libCAENDigitizer` so the data can be read
 		out from the digitizer.
@@ -265,7 +265,8 @@ class CAEN_DT5740_Digitizer:
 			raise RuntimeError(f'The digitizer is already acquiring, cannot start a new acquisition.')
 		self._start_acquisition()
 		self.get_acquisition_status() # This makes it work better. Don't know why.
-	
+		time.sleep(acq_time)
+
 	def stop_acquisition(self):
 		"""Stops the acquisition and cleans the memory used by the `libCAENDigitizer`
 		library to read out the instrument."""
