@@ -716,7 +716,7 @@ class CAEN_DT5740_Digitizer:
 		check_error_code(code)
 		return value.value
 
-	def setup_trigger(self, group, thresh, mode="ACQ_ONLY", channel_mask=0b01010101):
+	def setup_trigger(self, group, thresh, mode="ACQ_ONLY", channel_mask=0b00000001):
 		""" Setup the trigger
 
 		Arguments
@@ -882,8 +882,10 @@ class CAEN_DT5740_Digitizer:
 		self._allocateEvent()
 		self._mallocBuffer()
 		
+		print("starting read")
 		self._ReadData() # Bring data from digitizer to PC.
-		
+		print('done with read')
+
 		# Convert the data into something human friendly for the user, i.e. all the ugly stuff is happening below...
 		n_events = self._GetNumEvents()
 		print("Reading %d events...." % n_events)
