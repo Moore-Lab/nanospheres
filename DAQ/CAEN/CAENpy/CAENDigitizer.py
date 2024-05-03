@@ -879,12 +879,12 @@ class CAEN_DT5740_Digitizer:
 			it is automatically added in the return dictionaries.
 		"""
 		
+		channels_to_use = [0,2,4,6,8,10,12,14,16]
+
 		self._allocateEvent()
 		self._mallocBuffer()
 		
-		print("starting read")
 		self._ReadData() # Bring data from digitizer to PC.
-		print('done with read')
 
 		# Convert the data into something human friendly for the user, i.e. all the ugly stuff is happening below...
 		n_events = self._GetNumEvents()
@@ -896,15 +896,23 @@ class CAEN_DT5740_Digitizer:
 			self._DecodeEvent() # Decode the event whose info was get by the previous line, and place the decoded event info in `self.eventObject`, which was created in the `__init__` method.
 			event = self.eventObject.contents # The decoded event. Unfortunately, this still has lots of pointers to the temporary buffer so it is not persistent, we cannot return this. And I still don't know how to properly create a copy of this into my own memory block without processing each waveform individually.
 
-			event_waveforms = decode_event_waveforms_to_python_friendly_stuff(
-				event,
-				ADC_peak_to_peak_dynamic_range_volts = 1 if get_ADCu_instead_of_volts==False else None,
-				time_axis_parameters = dict(
-					sampling_frequency = self.get_sampling_frequency()*1e6,
-					post_trigger_size = self.get_post_trigger_size(),
-					fast_trigger_mode = self.get_fast_trigger_mode(),
-				) if get_time else None,
-			)
+			event_waveforms = {}
+			for n_channel in channels_to_use:
+				waveform_length = event.ChSize[n_channel]
+
+				samples = numpy.array(event.DataChannel[n_channel][0:waveform_length])
+		
+				event_waveforms[n_channel] = samples
+
+			#event_waveforms = decode_event_waveforms_to_python_friendly_stuff(
+			#	event,
+			#	ADC_peak_to_peak_dynamic_range_volts = 1 if get_ADCu_instead_of_volts==False else None,
+			#	time_axis_parameters = dict(
+			#		sampling_frequency = self.get_sampling_frequency()*1e6,
+			#		post_trigger_size = self.get_post_trigger_size(),
+			#		fast_trigger_mode = self.get_fast_trigger_mode(),
+			#	) if get_time else None,
+			#)
 			events.append(event_waveforms)
 		
 		self._freeEvent()
