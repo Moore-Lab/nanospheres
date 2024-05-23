@@ -5,7 +5,10 @@ def check_if_stopped(n, arduino, write_stop=False):
     
     got_stop = False
     for i in range(n):
-        cline = arduino.readline().decode()
+        try:
+            cline = arduino.readline().decode()
+        except UnicodeDecodeError:
+            cline = ""
         #print(cline)
         if("stop" not in cline):
 

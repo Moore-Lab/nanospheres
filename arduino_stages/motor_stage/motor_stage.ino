@@ -15,7 +15,7 @@
 // #define MICROSTEPS 1
 #define MICROSTEPS 8
 #define STEPS_PER_REV 400
-#define SPEED_MAX 1000
+#define SPEED_MAX 10000
 
 // For the function `taper`
 int cycles = 500;
@@ -23,7 +23,7 @@ int increment_steps = 200;
 int hot_zone_revs = 3;
 
 // For the function `pull`
-double pull_speed = 50;      // microsteps
+double pull_speed = 1000;      // microsteps
 double pull_length = 12.5;   // mm (on each side)
 
 double mm_to_steps = 800 * MICROSTEPS;
@@ -152,8 +152,8 @@ void pull(MultiStepper &steppers, AccelStepper &stepper1, AccelStepper &stepper2
     positions[0] = pull_length * mm_to_steps;
     positions[1] = - pull_length * mm_to_steps;
 
-    stepper1.setMaxSpeed(pull_speed);  // steps per second
-    stepper2.setMaxSpeed(pull_speed);
+    //stepper1.setAcceleration(100);  // steps per second
+    //stepper2.setAcceleration(100);
 
     stepper1.setCurrentPosition(0);
     stepper2.setCurrentPosition(0);
@@ -186,8 +186,11 @@ void step_single(MultiStepper &steppers, AccelStepper &stepper1, AccelStepper &s
     stepper2.setCurrentPosition(0);
 
     steppers.moveTo(positions);
+    //stepper1.setSpeed(pull_speed);  // steps per second
+    //stepper2.setSpeed(pull_speed);
     steppers.runSpeedToPosition();  // Blocks until movement is done
-    
+    //steppers.runToPosition();  // Blocks until movement is done
+
     step_count[0] += positions[0];
     step_count[1] += positions[1];
 }

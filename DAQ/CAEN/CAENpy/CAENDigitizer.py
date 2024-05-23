@@ -52,17 +52,17 @@ class BoardInfo(Structure):
 		("License", c_char*999),
 	]
 
-class Group(Structure):
-	_fields_ = [
-		("ChSize", c_uint32*9),
-		("DataChannel", POINTER(c_float)*9),
-		("TriggerTimeLag", c_uint32),
-		("StartIndexCell", c_uint16)]
+#class Group(Structure):
+#	_fields_ = [
+#		("ChSize", c_uint32*8),
+#		("DataChannel", POINTER(c_float)*8),
+#		("TriggerTimeLag", c_uint32),
+#		("StartIndexCell", c_uint16)]
 
 class Event(Structure):
 	_fields_ = [
-		("GrPresent", c_uint8*4),
-		("DataGroup", Group*4)]
+		("ChSize", c_uint32*64),
+		("DataChannel", POINTER(c_uint16)*64)]
 
 class EventInfo(Structure):
 	_fields_ = [
@@ -130,54 +130,32 @@ def decode_event_waveforms_to_python_friendly_stuff(event:Event, ADC_peak_to_pea
 		}
 		```
 	"""
-	CHANNELS_NAMES = tuple([f'CH{n}' for n in [0,1,2,3,4,5,6,7]] + ['trigger_group_0'] + [f'CH{n-1}' for n in [9,10,11,12,13,14,15,16]] + ['trigger_group_1']) # Human friendly names.
 	MAX_ADC = 2**12-1 # It is a 12 bit ADC.
-	
+
 	event_waveforms = {}
-	for n_channel in range(18):
-		n_group = int(n_channel / 9)
-		if event.GrPresent[n_group] != 1:
-			continue # If this group was disabled then skip it
+
+	for n_channel in range(32):
 		
-		channel_name = CHANNELS_NAMES[n_channel]
-		
-		# Convert the data for this channel into something Python-friendly.
-		n_channel_within_group = n_channel - (9 * n_group)
-		block = event.DataGroup[n_group]
-		waveform_length = block.ChSize[n_channel_within_group]
-		
+		waveform_length = event.ChSize[n_channel]
+		if waveform_length <= 0:
+			continue
+
 		if time_axis_parameters is not None and 'time_array' not in locals():
 			sampling_frequency = time_axis_parameters['sampling_frequency']
 			post_trigger_size = time_axis_parameters['post_trigger_size']
-			fast_trigger_mode = time_axis_parameters['fast_trigger_mode']
 			if not isinstance(sampling_frequency, (int, float)):
 				raise TypeError(f'Sampling frequency must be a float, received object of type {type(sampling_frequency)}. ')
 			if not isinstance(post_trigger_size, int):
 				raise TypeError(f'post_trigger_size must be an integer number, received object of type {type(post_trigger_size)}. ')
-			if not isinstance(fast_trigger_mode, bool):
-				raise TypeError(f'fast_trigger_mode must be a boolean, received object of type {type(fast_trigger_mode)}. ')
 			
 			time_array = numpy.array(range(waveform_length))/sampling_frequency
-			if fast_trigger_mode == True:
-				trigger_latency = 42e-9 # This comes from the user manual, see § 9.8.3 of 'UM4270_DT5742_UserManual_rev11.pdf'.
-			else:
-				trigger_latency = 0 # Unknown value, cannot use NaN as it would destroy all the time array.
-			time_array -= time_array.max()*(100-post_trigger_size)/100 - trigger_latency
+
+		samples = numpy.array(event.DataChannel[n_channel][0:waveform_length])
 		
-		samples = numpy.array(block.DataChannel[n_channel_within_group][0:waveform_length])
-		samples[(samples<ADC_dynamic_range_margin)|(samples>MAX_ADC-ADC_dynamic_range_margin)] = float('NaN') # These values are considered as ADC overflow, thus it is safer to replace them with NaN so they don't go unnoticed.
-		
-		wf = {}
-		if ADC_peak_to_peak_dynamic_range_volts is not None:
-			if not isinstance(ADC_peak_to_peak_dynamic_range_volts, (int,float)):
-				raise TypeError(f'`ADC_peak_to_peak_dynamic_range_volts` must be a float or integer number, received object of type {type(ADC_peak_to_peak_dynamic_range_volts)}. ')
-			wf['Amplitude (V)'] = (samples-MAX_ADC/2)*ADC_peak_to_peak_dynamic_range_volts/MAX_ADC
-		else:
-			wf['Amplitude (ADCu)'] = samples
-		if time_axis_parameters is not None:
-			wf['Time (s)'] = time_array
-		
-		event_waveforms[channel_name] = wf
+		event_waveforms[n_channel] = samples
+
+	event_waveforms['time'] = time_array
+
 	return event_waveforms
 
 class CAEN_DT5740_Digitizer:
@@ -250,7 +228,8 @@ class CAEN_DT5740_Digitizer:
 		self.eventAllocatedSize = c_uint32() # Size in memory of the event object.
 		self.eventBufferSize = c_uint32() # Size in memory of the events' block transfer.
 		self.eventVoidPointer = cast(byref(self.eventObject), POINTER(c_void_p)) # Need to create a **void since technically speaking other kinds of Event() esist as well (the CAENDigitizer library supports a multitude of devices, with different Event() structures) and we need to pass this to "universal" methods.
-		
+		self.SAMPLING_FREQUENCY = 62.5 ##MHz
+
 		self._open() # Open the connection to the digitizer.
 		
 		model = self.get_info()['ModelName'].decode('utf8')
@@ -271,7 +250,7 @@ class CAEN_DT5740_Digitizer:
 			self._idn = f'CAEN {model} digitizer, serial number {serial_number}'
 		return self._idn
 	
-	def start_acquisition(self):
+	def start_acquisition(self, acq_time=0.1):
 		"""Puts the device into acquisition mode and runs all the required
 		configurations of the `libCAENDigitizer` so the data can be read
 		out from the digitizer.
@@ -286,7 +265,8 @@ class CAEN_DT5740_Digitizer:
 			raise RuntimeError(f'The digitizer is already acquiring, cannot start a new acquisition.')
 		self._start_acquisition()
 		self.get_acquisition_status() # This makes it work better. Don't know why.
-	
+		time.sleep(acq_time)
+
 	def stop_acquisition(self):
 		"""Stops the acquisition and cleans the memory used by the `libCAENDigitizer`
 		library to read out the instrument."""
@@ -650,35 +630,10 @@ class CAEN_DT5740_Digitizer:
 			c_long(0 if edge == 'rising' else 1),
 		)
 		check_error_code(code)
-
-	def set_sampling_frequency(self, MHz:int):
-		"""Set the sampling frequency of the digitizer.
-		
-		Arguments
-		---------
-		MHz: int
-			The sampling frequency in Mega Hertz. Note that only some
-			discrete values are allowed, which are 750, 1000, 2500 and 5000.
-		"""
-		
-		FREQUENCY_VALUES = CAEN_DGTZ_DRS4Frequency_MEGA_HERTZ
-		if MHz not in FREQUENCY_VALUES:
-			raise ValueError(f'`MHz` must be one of {set(FREQUENCY_VALUES.keys())}, received {repr(MHz)}. ')
-		code = libCAENDigitizer.CAEN_DGTZ_SetDRS4SamplingFrequency(
-			self._get_handle(), 
-			c_long(FREQUENCY_VALUES[MHz]),
-		)
-		check_error_code(code)
 	
 	def get_sampling_frequency(self) -> int:
 		"""Returns the sampling frequency as an integer number in mega Hertz."""
-		freq = c_long()
-		code = libCAENDigitizer.CAEN_DGTZ_GetDRS4SamplingFrequency(
-			self._get_handle(), 
-			byref(freq),
-		)
-		check_error_code(code)
-		return {code: MHz for MHz,code in CAEN_DGTZ_DRS4Frequency_MEGA_HERTZ.items()}[int(freq.value)]
+		return self.SAMPLING_FREQUENCY
 	
 	def get_record_length(self) -> int:
 		"""Returns the record length."""
@@ -690,7 +645,7 @@ class CAEN_DT5740_Digitizer:
 		check_error_code(code)
 		return int(record_length.value)
 	
-	def enable_channels(self, group_1:bool, group_2:bool):
+	def enable_channels(self, group_list):
 		"""Set which groups to enable and/or disable.
 		
 		Arguments
@@ -700,8 +655,9 @@ class CAEN_DT5740_Digitizer:
 		group_2: bool
 			Enable or disable group 2, i.e. channels 8, 9, ..., 15.
 		"""
+		
 		mask = 0
-		for i,group in enumerate([group_1, group_2]):
+		for i,group in enumerate(group_list):
 			mask |= (1 if group else 0) << i
 		code = libCAENDigitizer.CAEN_DGTZ_SetGroupEnableMask(
 			self._get_handle(), 
@@ -709,7 +665,7 @@ class CAEN_DT5740_Digitizer:
 		)
 		check_error_code(code)
 
-	def set_channel_DC_offset(self, channel:int, DAC:int=None, V:float=None):
+	def set_group_DC_offset(self, channel:int, DAC:int=None, V:float=None):
 		"""
 		Set the DC offset for a channel.
 		
@@ -734,14 +690,14 @@ class CAEN_DT5740_Digitizer:
 			if not isinstance(V, (int,float)) or not -1 <= V <= 1:
 				raise ValueError('`V` must be a float between -1 and 1.')
 			DAC = int((V+1)/2*(2**16-1))
-		code = libCAENDigitizer.CAEN_DGTZ_SetChannelDCOffset(
+		code = libCAENDigitizer.CAEN_DGTZ_SetGroupDCOffset(
 			self._get_handle(), 
 			c_uint32(channel), 
 			c_uint32(DAC),
 		)
 		check_error_code(code)
 
-	def get_channel_DC_offset(self, channel)->int:
+	def get_group_DC_offset(self, channel)->int:
 		"""Get the DC offset value for a channel.
 		
 		Arguments
@@ -749,10 +705,10 @@ class CAEN_DT5740_Digitizer:
 		channel: int
 			Number of channel.
 		"""
-		if not isinstance(channel, int) or not 0 <= channel < 16:
-			raise ValueError(f'`channel` must be 0, 1, ..., 15, received {repr(channel)}. ')
+		if not isinstance(channel, int) or not 0 <= channel < 4:
+			raise ValueError(f'`group` must be 0, 1, 2, 3, received {repr(channel)}. ')
 		value = c_uint32(0)
-		code = libCAENDigitizer.CAEN_DGTZ_GetChannelDCOffset(
+		code = libCAENDigitizer.CAEN_DGTZ_GetGroupDCOffset(
 			self._get_handle(), 
 			c_uint32(channel), 
 			byref(value),
@@ -760,9 +716,37 @@ class CAEN_DT5740_Digitizer:
 		check_error_code(code)
 		return value.value
 
+	def setup_trigger(self, group, thresh, mode="ACQ_ONLY", channel_mask=0b01010101):
+		""" Setup the trigger
+
+		Arguments
+		-----------
+		group -- channel group to apply to, must be 0,1,2,3
+		mode -- mode for that channel group, must be DISABLED, ACQ_ONLY, EXTOUT_ONLY, or "ACQ_AND_EXTOUT'
+		channel mask -- binary for which channels of the 8 are used in trigger: 
+						default 01010101 does only even channels, which is appropriate for front panel MCX
+						connectors
+		"""
+
+		trig_mode = {"DISABLED": 0,
+			   		 "EXTOUT_ONLY": 2,
+					 "ACQ_ONLY": 1,
+					 "ACQ_AND_EXTOUT": 3}
+
+		if(group not in [0,1,2,3]):
+			raise ValueError('Group must be 0,1,2,3')
+
+		if(mode not in trig_mode.keys()):
+			raise ValueError('Trig mode must be DISABLED, ACQ_ONLY, EXTOUT_ONLY, or "ACQ_AND_EXTOUT')
+
+		libCAENDigitizer.CAEN_DGTZ_SetGroupSelfTrigger(self._get_handle(), trig_mode[mode], (1<<group))
+		libCAENDigitizer.CAEN_DGTZ_SetChannelGroupMask(self._get_handle(), group, channel_mask)
+		libCAENDigitizer.CAEN_DGTZ_SetGroupTriggerThreshold(self._get_handle(), group, thresh)
+
 	def _start_acquisition(self):
 		"""Start the acquisition in the board. The RUN LED will turn on."""
 		code = libCAENDigitizer.CAEN_DGTZ_SWStartAcquisition(self._get_handle())
+		#libCAENDigitizer.CAEN_DGTZ_SendSWtrigger(self._get_handle())
 		check_error_code(code)
 
 	def _stop_acquisition(self):
@@ -895,29 +879,40 @@ class CAEN_DT5740_Digitizer:
 			it is automatically added in the return dictionaries.
 		"""
 		
+		channels_to_use = [0,2,4,6,8,10,12,14,16]
+
 		self._allocateEvent()
 		self._mallocBuffer()
 		
 		self._ReadData() # Bring data from digitizer to PC.
-		
+
 		# Convert the data into something human friendly for the user, i.e. all the ugly stuff is happening below...
 		n_events = self._GetNumEvents()
+		print("Reading %d events...." % n_events)
 		events = []
 		pointer_to_event = POINTER(Event)()
 		for n_event in range(n_events):
 			self._GetEventInfo(n_event) # Put the "header info" of event number `n_event` inside `self.eventInfo`, which was created in the `__init__` method.
 			self._DecodeEvent() # Decode the event whose info was get by the previous line, and place the decoded event info in `self.eventObject`, which was created in the `__init__` method.
 			event = self.eventObject.contents # The decoded event. Unfortunately, this still has lots of pointers to the temporary buffer so it is not persistent, we cannot return this. And I still don't know how to properly create a copy of this into my own memory block without processing each waveform individually.
-			
-			event_waveforms = decode_event_waveforms_to_python_friendly_stuff(
-				event,
-				ADC_peak_to_peak_dynamic_range_volts = 1 if get_ADCu_instead_of_volts==False else None,
-				time_axis_parameters = dict(
-					sampling_frequency = self.get_sampling_frequency()*1e6,
-					post_trigger_size = self.get_post_trigger_size(),
-					fast_trigger_mode = self.get_fast_trigger_mode(),
-				) if get_time else None,
-			)
+
+			event_waveforms = {}
+			for n_channel in channels_to_use:
+				waveform_length = event.ChSize[n_channel]
+
+				samples = numpy.array(event.DataChannel[n_channel][0:waveform_length])
+		
+				event_waveforms[n_channel] = samples
+
+			#event_waveforms = decode_event_waveforms_to_python_friendly_stuff(
+			#	event,
+			#	ADC_peak_to_peak_dynamic_range_volts = 1 if get_ADCu_instead_of_volts==False else None,
+			#	time_axis_parameters = dict(
+			#		sampling_frequency = self.get_sampling_frequency()*1e6,
+			#		post_trigger_size = self.get_post_trigger_size(),
+			#		fast_trigger_mode = self.get_fast_trigger_mode(),
+			#	) if get_time else None,
+			#)
 			events.append(event_waveforms)
 		
 		self._freeEvent()
@@ -998,7 +993,11 @@ def __init__():
 		libCAENDigitizer.CAEN_DGTZ_GetEventInfo,
 		libCAENDigitizer.CAEN_DGTZ_DecodeEvent,
 		libCAENDigitizer.CAEN_DGTZ_LoadDRS4CorrectionData,
-		libCAENDigitizer.CAEN_DGTZ_EnableDRS4Correction
+		libCAENDigitizer.CAEN_DGTZ_EnableDRS4Correction,
+		libCAENDigitizer.CAEN_DGTZ_SetSWTriggerMode,
+		libCAENDigitizer.CAEN_DGTZ_GetSWTriggerMode,
+		libCAENDigitizer.CAEN_DGTZ_SendSWtrigger,
+		libCAENDigitizer.CAEN_DGTZ_SetChannelEnableMask
 	]
 	for f in functions: # All digitizer functions return a long, indicating the operation outcome. Make ctypes be aware of that.
 		f.restype = c_long
