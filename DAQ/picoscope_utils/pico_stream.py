@@ -18,7 +18,7 @@ import scipy.io as sio
 Set parameters here
 """
 
-# Channel E does not work... apparently it isn't a legit Key
+# Channel E does not work... apparently it isn't a legit Key...
 
 channels = ['A', 'B', 'C', 'D', 'F', 'G', 'H']
 channel_ranges = [7, 7, 7, 7, 7, 7, 7]
@@ -30,6 +30,7 @@ disabled = 0
 # Size of capture
 sizeOfOneBuffer = 1000000
 numBuffersToCapture = 1
+num_files = 10 # number of files tp capture
 
 sample_interval = 1 # in us
 
@@ -39,8 +40,6 @@ total_length = totalSamples*sample_interval
 print('Total length: %s us' % total_length)
 
 downsample_plot = 1000
-
-total_iter = 5
 
 """
 End of set parameters
@@ -215,67 +214,45 @@ actualSampleIntervalNs = actualSampleInterval * 1000
 # Begin streaming mode:
 
 bufferCompletel = np.zeros(shape=(len(channels), totalSamples), dtype=np.int16)
-start = time.time()
-nextSample = 0
-stream()
-#save_data('D:/Lab Data/Picoscope Test/1.hdf5', bufferCompletel)
-end = time.time()
-print((end-start)*10**6)
-print(((end-start)-total_length/10**6)/1)
-start = time.time()
-nextSample = 0
-stream()
-#save_data('D:/Lab Data/Picoscope Test/2.hdf5', bufferCompletel)
-end = time.time()
-print((end-start)*10**6)
-print(((end-start)-total_length/10**6)/1)
-start = time.time()
-nextSample = 0
-stream()
-#save_data('D:/Lab Data/Picoscope Test/3.hdf5', bufferCompletel)
-end = time.time()
-print((end-start)*10**6)
-print(((end-start)-total_length/10**6)/1)
-start = time.time()
-nextSample = 0
-stream()
-#save_data('D:/Lab Data/Picoscope Test/4.hdf5', bufferCompletel)
-end = time.time()
-print((end-start)*10**6)
-print(((end-start)-total_length/10**6)/1)
-start = time.time()
-nextSample = 0
-stream()
-#save_data('D:/Lab Data/Picoscope Test/5.hdf5', bufferCompletel)
-end = time.time()
-print((end-start)*10**6)
-print(((end-start)-total_length/10**6)/1)
+starts = np.zeros(num_files)
+ends = np.zeros(num_files)
+for i in range(num_files):
+    start = time.time()
+    nextSample = 0
+    stream()
+    maxADC = ctypes.c_int16()
+    status["maximumValue"] = ps.ps4000aMaximumValue(chandle, ctypes.byref(maxADC))
+    assert_pico_ok(status["maximumValue"])
+    adc2mVChlMax = adc2mV2(bufferCompletel, channel_ranges, maxADC)
+    save_data('C:/Users/thoma/OneDrive/Documents/SIMPLE/Data/PicoTest/1.hdf5', adc2mVChlMax)
+    end = time.time()
+    starts[i] = start
+    ends[i] = end
 
+# # Find maximum ADC count value
+# # handle = chandle
+# # pointer to value = ctypes.byref(maxADC)
+# maxADC = ctypes.c_int16()
+# status["maximumValue"] = ps.ps4000aMaximumValue(chandle, ctypes.byref(maxADC))
+# assert_pico_ok(status["maximumValue"])
 
-# Find maximum ADC count value
-# handle = chandle
-# pointer to value = ctypes.byref(maxADC)
-maxADC = ctypes.c_int16()
-status["maximumValue"] = ps.ps4000aMaximumValue(chandle, ctypes.byref(maxADC))
-assert_pico_ok(status["maximumValue"])
+# # Convert ADC counts data to mV - this is actually super slow - might be able to speed it up without the loop 
+# #adc2mVChlMax = np.zeros(shape=(len(channels), totalSamples), dtype=np.int16)
+# #for n, buff in enumerate(bufferCompletel):
+# #    adc2mVChMax = adc2mV(buff, channel_ranges[n], maxADC)
+# #    adc2mVChlMax[n] = adc2mVChMax
 
-# Convert ADC counts data to mV - this is actually super slow - might be able to speed it up without the loop 
-#adc2mVChlMax = np.zeros(shape=(len(channels), totalSamples), dtype=np.int16)
-#for n, buff in enumerate(bufferCompletel):
-#    adc2mVChMax = adc2mV(buff, channel_ranges[n], maxADC)
-#    adc2mVChlMax[n] = adc2mVChMax
-
-# Convert ADC counts data to mV - this is faster but might contribute significantly to deadtime in which case we should save in adc and convert later
-adc2mVChlMax = adc2mV2(bufferCompletel, channel_ranges, maxADC)
-# Create time data
-t = np.linspace(0, (totalSamples - 1) * actualSampleIntervalNs, totalSamples)
-# Plot data from channels
-for n, tt in enumerate(adc2mVChlMax):
-    plt.plot(t[::downsample_plot], tt[::downsample_plot], label = 'Channel '+channels[n])
-plt.xlabel('Time (ns)')
-plt.ylabel('Voltage (mV)')
-plt.legend()
-plt.show()
+# # Convert ADC counts data to mV - this is faster but might contribute significantly to deadtime in which case we should save in adc and convert later
+# adc2mVChlMax = adc2mV2(bufferCompletel, channel_ranges, maxADC)
+# # Create time data
+# t = np.linspace(0, (totalSamples - 1) * actualSampleIntervalNs, totalSamples)
+# # Plot data from channels
+# for n, tt in enumerate(adc2mVChlMax):
+#     plt.plot(t[::downsample_plot], tt[::downsample_plot], label = 'Channel '+channels[n])
+# plt.xlabel('Time (ns)')
+# plt.ylabel('Voltage (mV)')
+# plt.legend()
+# plt.show()
 
 # Stop the scope
 # handle = chandle
