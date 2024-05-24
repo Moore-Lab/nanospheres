@@ -230,12 +230,12 @@ for m, sizeOfOneBuffer in enumerate(sizeOfOneBuffers):
         start = time.time()
         nextSample = 0
         stream()
-        maxADC = ctypes.c_int16()
-        status["maximumValue"] = ps.ps4000aMaximumValue(chandle, ctypes.byref(maxADC))
-        assert_pico_ok(status["maximumValue"])
-        adc2mVChlMax = adc2mV2(bufferCompletel, channel_ranges, maxADC)
+        #maxADC = ctypes.c_int16()
+        #status["maximumValue"] = ps.ps4000aMaximumValue(chandle, ctypes.byref(maxADC))
+        #assert_pico_ok(status["maximumValue"])
+        #adc2mVChlMax = adc2mV2(bufferCompletel, channel_ranges, maxADC)
         mdict = {'dataset':bufferCompletel}
-        save_data_hdf5('C:/Users/thoma/OneDrive/Documents/SIMPLE/Data/PicoTest/1.hdf5', mdict)
+        save_data_hdf5('D:/Lab Data/Picoscope Test/Tmp/'+str(m)+str(i)+'.hdf5', mdict)
         end = time.time()
         starts[i] = start
         ends[i] = end
@@ -265,7 +265,7 @@ for n, diffs in enumerate(diffsl):
 
 mdict = {'trace length': sizeOfOneBuffers/10**6, 'trace time': diffsl, 'channels': channels, 'channel_ranges': channel_ranges, 'sampling interval': [sample_interval]}
 
-save_data_hdf5('D:/Lab Data/Picoscope Test/Benchmarking/deadtime_saving_adc2mv_7channel.hdf5', mdict)
+save_data_hdf5('D:/Lab Data/Picoscope Test/Benchmarking/deadtime_saving3_noadc2mv_7channel.hdf5', mdict)
 
 plt.errorbar(sizeOfOneBuffers/10**6, diffs_avr, yerr = diffs_std, marker = 'o', linestyle = 'None', capsize = 3)
 plt.xscale('log')
