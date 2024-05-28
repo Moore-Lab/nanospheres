@@ -1,9 +1,4 @@
-#
-# Copyright (C) 2018-2019 Pico Technology Ltd. See LICENSE file for terms.
-#
-# PS2000 Series (A API) STREAMING MODE EXAMPLE
-# This example demonstrates how to call the ps4000A driver API functions in order to open a device, setup 2 channels and collects streamed data (1 buffer).
-# This data is then plotted as mV against time in ns.
+# Based on PS2000 Series (A API) STREAMING MODE EXAMPLE
 
 import ctypes
 import numpy as np
@@ -21,30 +16,27 @@ Set parameters here
 # Channel E does not work... apparently it isn't a legit Key...
 
 channels = ['A', 'B', 'C', 'D', 'F', 'G', 'H']
-channel_ranges = [7, 7, 7, 7, 7, 7, 7]
+
+# ranges: 0=10 mV, 1=20 mV, 2=50 mV, 3=100mV, 4=200 mV, 5=500 mV, 6=1000 mV, 7=2000 mV, 8=5000 mV, 9=10000 mV, 10=20000 mV, 11=50000 mV]
+channel_ranges = [0, 0, 0, 0, 0, 0, 0]
 analogue_offsets = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+filename = 'D:/Lab Data/Picoscope Test/Tmp/test' # Location to save data
 
 enabled = 1
 disabled = 0
 
+ADC_convert = False # Convert to mV? This increases the dead time
+
 # Size of capture
-sizeOfOneBuffers = np.array([1000, 10000, 100000, 1000000, 10000000, 50000000])
-numBuffersToCapture = 1
-num_files = 10 # number of files tp capture
-
+bufferLength = 1 # in seconds
+numBuffersToCapture = 1 # just leave this at 1 for now - will probably need to play with this when want to look at data that hasn't yet been saved.
+num_files = 10 # number of files t0 capture
 sample_interval = 1 # in us
-
-
-
-#print('Total length: %s us' % total_length)
-
-#downsample_plot = 1000
 
 """
 End of set parameters
 """
-
-
 
 """
 Now some useful functions
@@ -60,7 +52,7 @@ def adc2mV2(bufferADC, range, maxADC):
                
         Takes a buffer of raw adc count values and converts it into millivolts
     """
-    channelInputRanges = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000]
+    channelInputRanges = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000]
     vRange = np.zeros(shape=(len(bufferADC), len(bufferADC[0])), dtype=np.int16)
     for n, i in enumerate(range):
         vRange[n] += channelInputRanges[i]
@@ -187,92 +179,78 @@ def save_data_hdf5(filename, data):
         for key in keys:
             f[key] = data[key]
         #f.close()
-    return 0
 
-def save_data2(filename, data):
-    sio.savemat(filename, {'A':data})
+def load_data_hdf5(filename):
+    """
+    Loads data in HDF5. Doesn't load metadata. Outputs as dictionary.
+    filename: Filename of file you want to load
+    """
+    f = h5py.File(filename, "r")
+    keys = list(f.keys())
+    mdict = {}
+    for key in keys:
+        dataset = list(f[key])
+        mdict[key] = dataset
+    f.close()
+    return mdict
 
 """
 End of functions
 """
-print(len(sizeOfOneBuffers))
-diffsl = np.zeros((len(sizeOfOneBuffers), num_files))
-for m, sizeOfOneBuffer in enumerate(sizeOfOneBuffers):
-    totalSamples = sizeOfOneBuffer * numBuffersToCapture
-    total_length = totalSamples*sample_interval
-    # Turn on the picoscope
-    chandle, status = pico_TurnOn()
 
-    # Set up the channels
-    for n in range(len(channels)):
-        set_Channel(channels[n], channel_ranges[n], analogue_offsets[n])
+sizeOfOneBuffer = int(bufferLength*sample_interval*10**6)
+totalSamples = sizeOfOneBuffer * numBuffersToCapture
+total_length = totalSamples*sample_interval
+# Turn on the picoscope
+chandle, status = pico_TurnOn()
 
-    # Create buffers ready for assigning pointers for data collection
-    bufferMaxl = np.zeros(shape=(len(channels), sizeOfOneBuffer), dtype=np.int16)
+# Set up the channels
+for n in range(len(channels)):
+    set_Channel(channels[n], channel_ranges[n], analogue_offsets[n])
 
-    memory_segment = 0 # Not 100% sure how this affects things but will mess around with it later to understand
+# Create buffers ready for assigning pointers for data collection
+bufferMaxl = np.zeros(shape=(len(channels), sizeOfOneBuffer), dtype=np.int16)
 
-    # set up the buffer in the picoscope
-    for n, i in enumerate(channels):
-        set_DataBuffer(i, n)
+memory_segment = 0 # Not 100% sure how this affects things but will mess around with it later to understand
 
-    sampleInterval = ctypes.c_int32(sample_interval)
-    sampleUnits = ps.PS4000A_TIME_UNITS['PS4000A_US']
-    actualSampleInterval = sampleInterval.value
-    actualSampleIntervalNs = actualSampleInterval * 1000
+# set up the buffer in the picoscope
+for n, i in enumerate(channels):
+    set_DataBuffer(i, n)
 
-    # Begin streaming mode:
+sampleInterval = ctypes.c_int32(sample_interval)
+sampleUnits = ps.PS4000A_TIME_UNITS['PS4000A_US'] # sample_interval is in us
+actualSampleInterval = sampleInterval.value
+actualSampleIntervalNs = actualSampleInterval * 1000
 
-    bufferCompletel = np.zeros(shape=(len(channels), totalSamples), dtype=np.int16)
-    starts = np.zeros(num_files)
-    ends = np.zeros(num_files)
-    for i in range(num_files):
-        start = time.time()
-        nextSample = 0
-        stream()
-        #maxADC = ctypes.c_int16()
-        #status["maximumValue"] = ps.ps4000aMaximumValue(chandle, ctypes.byref(maxADC))
-        #assert_pico_ok(status["maximumValue"])
-        #adc2mVChlMax = adc2mV2(bufferCompletel, channel_ranges, maxADC)
-        mdict = {'dataset':bufferCompletel}
-        save_data_hdf5('D:/Lab Data/Picoscope Test/Tmp/'+str(m)+str(i)+'.hdf5', mdict)
-        end = time.time()
-        starts[i] = start
-        ends[i] = end
-    diffs = ends - starts
-    diffsl[m] = diffs
+# Begin streaming mode:
+# Will loop through and stream num_files number of times. Each time saves a buffer of length totalSamples for each channel.
 
-    # Stop the scope
-    # handle = chandle
-    status["stop"] = ps.ps4000aStop(chandle)
-    assert_pico_ok(status["stop"])
+bufferCompletel = np.zeros(shape=(len(channels), totalSamples), dtype=np.int16)
+for i in range(num_files):
+    nextSample = 0
+    stream()
+    if ADC_convert: # if converting to mV will do that
+        maxADC = ctypes.c_int16()
+        status["maximumValue"] = ps.ps4000aMaximumValue(chandle, ctypes.byref(maxADC))
+        assert_pico_ok(status["maximumValue"])
+        adc2mVChlMax = adc2mV2(bufferCompletel, channel_ranges, maxADC)
+    mdict = {'Sample interval (us)': [sample_interval]} # create a dictionary of saving data into
+    for m, j in enumerate(channels): # add actual data to dictionary
+        if ADC_convert:
+            mdict[j] = adc2mVChlMax[m]
+        else:
+            mdict[j] = bufferCompletel[m]
+    save_data_hdf5(filename+str(i)+'.hdf5', mdict)
 
-    # Disconnect the scope
-    # handle = chandle
-    status["close"] = ps.ps4000aCloseUnit(chandle)
-    assert_pico_ok(status["close"])
+# Stop the scope
+# handle = chandle
+status["stop"] = ps.ps4000aStop(chandle)
+assert_pico_ok(status["stop"])
 
-    # Display status returns
-    print(status)
+# Disconnect the scope
+# handle = chandle
+status["close"] = ps.ps4000aCloseUnit(chandle)
+assert_pico_ok(status["close"])
 
- 
-
-diffs_avr = np.zeros(len(sizeOfOneBuffers))
-diffs_std = np.zeros(len(sizeOfOneBuffers))
-for n, diffs in enumerate(diffsl):
-    diffs_avr[n] = np.mean(diffs)
-    diffs_std[n] = np.std(diffs)/np.sqrt(num_files)
-
-mdict = {'trace length': sizeOfOneBuffers/10**6, 'trace time': diffsl, 'channels': channels, 'channel_ranges': channel_ranges, 'sampling interval': [sample_interval]}
-
-save_data_hdf5('D:/Lab Data/Picoscope Test/Benchmarking/deadtime_saving3_noadc2mv_7channel.hdf5', mdict)
-
-plt.errorbar(sizeOfOneBuffers/10**6, diffs_avr, yerr = diffs_std, marker = 'o', linestyle = 'None', capsize = 3)
-plt.xscale('log')
-plt.yscale('log')
-plt.show()
-
-plt.errorbar(sizeOfOneBuffers/10**6, diffs_avr-sizeOfOneBuffers/10**6, yerr = diffs_std, marker = 'o', linestyle = 'None', capsize = 3)
-plt.xscale('log')
-plt.yscale('log')
-plt.show()
+# Display status returns
+print(status)
