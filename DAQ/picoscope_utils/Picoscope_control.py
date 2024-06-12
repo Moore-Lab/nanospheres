@@ -143,10 +143,11 @@ class PicoScope:
 
         return outTime, outData
 
-
+    def init_buffersComplete(self):
+        self.buffersComplete = np.zeros(shape=(self.numChannels, self._totalSamples), dtype=np.int16)
 
     def Stream(self):
-        self.buffersComplete = np.zeros(shape=(self.numChannels, self._totalSamples), dtype=np.int16)
+        self.init_buffersComplete()
         self.nextSample = 0
         self.autoStopOuter = False
         self.wasCalledBack = False
@@ -193,6 +194,7 @@ class PicoScope:
     def close(self):
         # Disconnect the scope
         # handle = chandle
+        self.autoStopOuter = True
         self.status["close"] = ps.ps4000aCloseUnit(self.chandle)
         assert_pico_ok(self.status["close"])
 
@@ -200,9 +202,16 @@ class PicoScope:
         plt.plot(buffer)
         plt.show()
 
-    def save2HDF5(self, filename, buffer):
-        with h5py.File(filename, 'w') as f:
-            f['dataset'] = buffer
+    def save_data_hdf5(self, filename, data):
+        """
+        Saves data in HDF5. Does it in a simple way by looping through data and datasetnames
+        filename: Filename of file you want to save
+        data: the data you want to save as a dictionary
+        """
+        keys = list(data.keys())
+        with h5py.File(filename, "w") as f:
+            for key in keys:
+                f[key] = data[key]
 
 #pico = PicoScope(channels = ["A", "B"], buffersize = 10000, sampleInterval = 100, sampleUnit = "US", totalSamples = 10000)
 #pico.Stream()

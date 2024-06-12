@@ -87,22 +87,28 @@ class MainWindow(QMainWindow):
         layout1.setContentsMargins(0,0,0,0)
         layout1.setSpacing(20)
 
-        self.button_is_checked = False
-
-        self.btn1 = QPushButton("Show")
-        self.btn1.setCheckable(True)
+        self.btn1 = QPushButton("Connect")
         self.btn1.clicked.connect(self.btn1_click)
-        self.btn1.setChecked(self.button_is_checked)
 
+        self.button2_is_checked = False
         self.btn2 = QPushButton("Run")
+        self.btn2.setCheckable(True)
         self.btn2.clicked.connect(self.btn2_click)
+        self.btn2.setChecked(self.button2_is_checked)
 
-        self.btn3 = QPushButton("Close")
+        self.button3_is_checked = False
+        self.btn3 = QPushButton("Show")
+        self.btn3.setCheckable(True)
         self.btn3.clicked.connect(self.btn3_click)
+        self.btn3.setChecked(self.button3_is_checked)
+
+        self.btn4 = QPushButton("Stop and close")
+        self.btn4.clicked.connect(self.btn4_click)
 
         layout2.addWidget(self.btn1)
         layout2.addWidget(self.btn2)
         layout2.addWidget(self.btn3)
+        layout2.addWidget(self.btn4)
 
         layout1.addLayout( layout2 )
 
@@ -113,11 +119,11 @@ class MainWindow(QMainWindow):
         l3_label2 = QLabel("Sampling interval")
         l3_label3 = QLabel("Buffer Size")
 
-        l3_double1 = QSpinBox()
-        l3_double1.setMinimum(1)
-        l3_double1.setMaximum(99999)
-        l3_double1.setSingleStep(1)
-        l3_double1.valueChanged.connect(self.totalSample_changed)
+        self.l3_double1 = QSpinBox()
+        self.l3_double1.setMinimum(1)
+        self.l3_double1.setMaximum(99999)
+        self.l3_double1.setSingleStep(1)
+        self.l3_double1.valueChanged.connect(self.totalSample_changed)
 
         l3_double2 = QSpinBox()
         l3_double2.setMinimum(1)
@@ -138,25 +144,40 @@ class MainWindow(QMainWindow):
         l3_drop3 = QComboBox()
         l3_drop3.addItems(["s", "ms", "us", "ns"])
 
+        self.Check1_is_checked = False
+        self.l3_Check1 = QCheckBox('Save data')
+        self.l3_Check1.stateChanged.connect(self.check1_changed)
+        self.l3_Check1.setChecked(self.Check1_is_checked)
+
+        self.Check2_is_checked = False
+        self.l3_Check2 = QCheckBox('Run until stopped')
+        self.l3_Check2.stateChanged.connect(self.check2_changed)
+        self.l3_Check2.setChecked(self.Check2_is_checked)
+
         layout4 = QHBoxLayout()
         layout5 = QHBoxLayout()
         layout6 = QHBoxLayout()
+        layout7 = QHBoxLayout()
 
-        layout4.addWidget(l3_double1)
-        layout4.addWidget(l3_drop1)
+        layout4.addWidget(self.l3_Check1)
+        layout4.addWidget(self.l3_Check2)
 
-        layout5.addWidget(l3_double2)
-        layout5.addWidget(l3_drop2)
+        layout5.addWidget(self.l3_double1)
+        layout5.addWidget(l3_drop1)
 
-        layout6.addWidget(l3_double3)
-        layout6.addWidget(l3_drop3)
+        layout6.addWidget(l3_double2)
+        layout6.addWidget(l3_drop2)
 
-        layout3.addWidget(l3_label1)
+        layout7.addWidget(l3_double3)
+        layout7.addWidget(l3_drop3)
+
         layout3.addLayout(layout4)
-        layout3.addWidget(l3_label2)
+        layout3.addWidget(l3_label1)
         layout3.addLayout(layout5)
-        layout3.addWidget(l3_label3)
+        layout3.addWidget(l3_label2)
         layout3.addLayout(layout6)
+        layout3.addWidget(l3_label3)
+        layout3.addLayout(layout7)
 
         layout1.addLayout(layout3)
 
@@ -179,19 +200,28 @@ class MainWindow(QMainWindow):
         self.threadpool = QThreadPool()
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
-        self.totalSamples = 3000
+        self.totalSamples = 10000
         self.sampleInterval = 1000
         self.buffersize = 100
 
-        self.PicoConnect()
+        self.PicoConnected = False
 
     def PicoConnect(self):
         self.pico = pc.PicoScope(channels = ["A"], buffersize = self.buffersize, sampleInterval = self.sampleInterval, sampleUnit = "US", totalSamples = self.totalSamples)
+        self.pico.init_buffersComplete()
 
     def update_plot(self):
         # Drop off the first y element, append a new one.
-        self.ydata = self.pico.buffersComplete[0][self.i*100:self.i*100+1000]
-        self.xdata = np.linspace(0, 1, 1000) 
+        #self.ydata = self.pico.buffersComplete[0][self.i*110:self.i*110+1000]
+        if not self.button2_is_checked:
+            self.button3_is_checked = False
+            self.btn3.setChecked(self.button3_is_checked)
+            self.timer.stop()
+
+        self.ydata = 1*self.pico.buffersComplete[0]
+        #if len(self.ydata) < 1000:
+        #    self.ydata = self.pico.buffersComplete[0][-1000:]
+        self.xdata = np.linspace(0, 10, 10000) 
         # Note: we no longer need to clear the axis.
         if self._plot_ref is None:
             
@@ -208,19 +238,20 @@ class MainWindow(QMainWindow):
         # Trigger the canvas to update and redraw.
         self.canvas.draw()
 
-    def stepi(self):
-        self.i += 1
-
-    def btn1_click(self):
-        self.button_is_checked = self.btn1.isChecked()
-        print("Plotting!")
-        if self.button_is_checked:
-            self.i = 0
+    def btn3_click(self):
+        #self.worker_Stream()
+        self.button3_is_checked = self.btn3.isChecked()
+        if self.button3_is_checked and self.PicoConnected: 
+            print("Plotting!")
+            self.ydata = np.zeros(self.totalSamples)
             self.timer = QTimer()
             self.timer.setInterval(100)
             self.timer.timeout.connect(self.update_plot)
-            self.timer.timeout.connect(self.stepi)
             self.timer.start()
+        elif not self.PicoConnected:
+            print('Not connected to a picoscope!')
+            self.button3_is_checked = False
+            self.btn3.setChecked(self.button3_is_checked)
         else:
             self.timer.stop()
         
@@ -228,21 +259,85 @@ class MainWindow(QMainWindow):
     #def Stream(self):
     #    self.update_plot()
 
-    def btn2_click(self):
+    def worker_Stream(self):
         print('Streaming')
         worker = Worker(self.Stream)
         # Execute
         self.threadpool.start(worker)
 
-    def Stream(self):
-        self.pico.Stream()
+    def btn1_click(self):
+        if not self.PicoConnected: 
+            print('Connecting...')
+            self.PicoConnect()
+            self.PicoConnected = True
+            print('Connected') 
+        else:
+            print('Already Connected!') 
 
-    def btn3_click(self):
-        self.pico.stop()
-        self.pico.close()
+    def btn2_click(self):
+        self.button2_is_checked = self.btn2.isChecked()
+        if self.button2_is_checked and self.PicoConnected: 
+            print('Streaming')
+            worker = Worker(self.Stream)
+            # Execute
+            self.threadpool.start(worker)
+        elif not self.PicoConnected:
+            print('Not connected to a picoscope!')
+            self.button2_is_checked = False
+            self.btn2.setChecked(self.button2_is_checked)
+        else: 
+            print('Stopping')
+            if self.Check1_is_checked:
+                mdict = {'A': self.pico.buffersComplete[0]}
+                filename = 'C:/Users/thoma/Documents/SIMPLE/Data/PicoTest/test.hdf5'
+                self.pico.save_data_hdf5(filename, mdict)
+            self.pico.stop()
+
+    def Stream(self):
+        if self.Check2_is_checked:
+            while self.button2_is_checked and self.Check2_is_checked:
+                self.pico.Stream()
+                if self.Check1_is_checked:
+                    mdict = {'A': self.pico.buffersComplete[0]}
+                    filename = 'C:/Users/thoma/Documents/SIMPLE/Data/PicoTest/test.hdf5'
+                    self.pico.save_data_hdf5(filename, mdict)
+        else:
+            self.pico.Stream()
+            if self.Check1_is_checked:
+                mdict = {'A': self.pico.buffersComplete[0]}
+                filename = 'C:/Users/thoma/Documents/SIMPLE/Data/PicoTest/test.hdf5'
+                self.pico.save_data_hdf5(filename, mdict)
+        self.button2_is_checked = False
+        self.btn2.setChecked(self.button2_is_checked)
+
+    def btn4_click(self):
+        if self.PicoConnected:
+            self.button2_is_checked = False
+            self.btn2.setChecked(self.button2_is_checked)
+            print('Stopping')
+            self.pico.stop()
+            print('Closed')
+            self.pico.close()
+            self.PicoConnected = False
+        else:
+            print('Already closed!')
 
     def totalSample_changed(self, i):
         self.totalSamples = i
+
+    def check1_changed(self):
+        if not self.Check1_is_checked:
+            self.Check1_is_checked = True
+        else:
+            self.Check1_is_checked = False
+
+    def check2_changed(self):
+        if not self.Check2_is_checked:
+            self.Check2_is_checked = True
+            self.l3_double1.setDisabled(True)
+        else:
+            self.Check2_is_checked = False
+            self.l3_double1.setDisabled(False)
 
 app = QApplication(sys.argv)
 

@@ -31,7 +31,7 @@ ADC_convert = False # Convert to mV? This increases the dead time
 # Size of capture
 bufferLength = 1 # in seconds
 numBuffersToCapture = 1 # just leave this at 1 for now - will probably need to play with this when want to look at data that hasn't yet been saved.
-num_files = 10 # number of files t0 capture
+num_files = 1 # number of files t0 capture
 sample_interval = 1 # in us
 
 """
