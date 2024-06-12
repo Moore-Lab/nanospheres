@@ -218,7 +218,7 @@ class MainWindow(QMainWindow):
             self.btn3.setChecked(self.button3_is_checked)
             self.timer.stop()
 
-        self.ydata = 1*self.pico.buffersComplete[0]
+        self.ydata = self.pico.buffersComplete[0]
         #if len(self.ydata) < 1000:
         #    self.ydata = self.pico.buffersComplete[0][-1000:]
         self.xdata = np.linspace(0, self.totalSamples/self.sampleInterval, self.totalSamples) 
