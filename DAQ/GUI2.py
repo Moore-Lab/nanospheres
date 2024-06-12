@@ -221,7 +221,7 @@ class MainWindow(QMainWindow):
         self.ydata = 1*self.pico.buffersComplete[0]
         #if len(self.ydata) < 1000:
         #    self.ydata = self.pico.buffersComplete[0][-1000:]
-        self.xdata = np.linspace(0, 10, 10000) 
+        self.xdata = np.linspace(0, self.totalSamples/self.sampleInterval, self.totalSamples) 
         # Note: we no longer need to clear the axis.
         if self._plot_ref is None:
             
@@ -307,6 +307,8 @@ class MainWindow(QMainWindow):
                 mdict = {'A': self.pico.buffersComplete[0]}
                 filename = 'C:/Users/thoma/Documents/SIMPLE/Data/PicoTest/test.hdf5'
                 self.pico.save_data_hdf5(filename, mdict)
+            if self.Check2_is_checked:
+                self.Stream()
         self.button2_is_checked = False
         self.btn2.setChecked(self.button2_is_checked)
 
