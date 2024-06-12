@@ -79,6 +79,14 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
 
         self.setWindowTitle("My App")
+        self.PicoConnected = False
+        self.totalSamples = 10000
+        self.sampleInterval = 1000
+        self.buffersize = 100
+        self.global_multiplier = {'s': 1000000000, 'ms': 1000000, 'us': 1000, 'ns': 1}
+        self.totaltime_unit = 's'
+        self.sampleInterval_unit = 'us'
+        self.buffersize_unit = 'us'
 
         layout1 = QHBoxLayout()
         layout2 = QVBoxLayout()
@@ -124,25 +132,32 @@ class MainWindow(QMainWindow):
         self.l3_double1.setMaximum(99999)
         self.l3_double1.setSingleStep(1)
         self.l3_double1.valueChanged.connect(self.totalSample_changed)
+        self.l3_double1.setValue(int(self.totalSamples/self.sampleInterval))
 
-        l3_double2 = QSpinBox()
-        l3_double2.setMinimum(1)
-        l3_double2.setMaximum(999)
-        l3_double2.setSingleStep(1)
+        self.l3_double2 = QSpinBox()
+        self.l3_double2.setMinimum(1)
+        self.l3_double2.setMaximum(99999)
+        self.l3_double2.setSingleStep(1)
+        self.l3_double2.valueChanged.connect(self.sampleInterval_changed)
+        self.l3_double2.setValue(self.sampleInterval)
         
-        l3_double3 = QSpinBox()
-        l3_double3.setMinimum(1)
-        l3_double3.setMaximum(999)
-        l3_double3.setSingleStep(1)
+        self.l3_double3 = QSpinBox()
+        self.l3_double3.setMinimum(1)
+        self.l3_double3.setMaximum(99999)
+        self.l3_double3.setSingleStep(1)
+        self.l3_double3.setValue(self.buffersize)
 
-        l3_drop1 = QComboBox()
-        l3_drop1.addItems(["s", "ms", "us", "ns"])
+        self.l3_drop1 = QComboBox()
+        self.l3_drop1.addItems(["s", "ms", "us", "ns"])
 
-        l3_drop2 = QComboBox()
-        l3_drop2.addItems(["s", "ms", "us", "ns"])
+        self.l3_drop2 = QComboBox()
+        self.l3_drop2.addItems(["s", "ms", "us", "ns"])
+        self.l3_drop2.setCurrentIndex(2)
 
-        l3_drop3 = QComboBox()
-        l3_drop3.addItems(["s", "ms", "us", "ns"])
+        self.l3_drop3 = QComboBox()
+        self.l3_drop3.addItems(["s", "ms", "us", "ns"])
+        self.l3_drop3.setCurrentIndex(2)
+
 
         self.Check1_is_checked = False
         self.l3_Check1 = QCheckBox('Save data')
@@ -163,13 +178,13 @@ class MainWindow(QMainWindow):
         layout4.addWidget(self.l3_Check2)
 
         layout5.addWidget(self.l3_double1)
-        layout5.addWidget(l3_drop1)
+        layout5.addWidget(self.l3_drop1)
 
-        layout6.addWidget(l3_double2)
-        layout6.addWidget(l3_drop2)
+        layout6.addWidget(self.l3_double2)
+        layout6.addWidget(self.l3_drop2)
 
-        layout7.addWidget(l3_double3)
-        layout7.addWidget(l3_drop3)
+        layout7.addWidget(self.l3_double3)
+        layout7.addWidget(self.l3_drop3)
 
         layout3.addLayout(layout4)
         layout3.addWidget(l3_label1)
@@ -200,13 +215,12 @@ class MainWindow(QMainWindow):
         self.threadpool = QThreadPool()
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
-        self.totalSamples = 10000
-        self.sampleInterval = 1000
-        self.buffersize = 100
+        
 
-        self.PicoConnected = False
+        
 
     def PicoConnect(self):
+        print(self.totalSamples)
         self.pico = pc.PicoScope(channels = ["A"], buffersize = self.buffersize, sampleInterval = self.sampleInterval, sampleUnit = "US", totalSamples = self.totalSamples)
         self.pico.init_buffersComplete()
 
@@ -221,10 +235,9 @@ class MainWindow(QMainWindow):
         self.ydata = self.pico.buffersComplete[0]
         #if len(self.ydata) < 1000:
         #    self.ydata = self.pico.buffersComplete[0][-1000:]
-        self.xdata = np.linspace(0, self.totalSamples/self.sampleInterval, self.totalSamples) 
+        self.xdata = np.linspace(0, self.totalSamples*self.sampleInterval/1000000, self.totalSamples) 
         # Note: we no longer need to clear the axis.
         if self._plot_ref is None:
-            
             # First time we have no plot reference, so do a normal plot.
             # .plot returns a list of line <reference>s, as we're
             # only getting one we can take the first element.
@@ -309,8 +322,14 @@ class MainWindow(QMainWindow):
                 self.pico.save_data_hdf5(filename, mdict)
             if self.Check2_is_checked:
                 self.Stream()
+        
+        print('End stream1')
         self.button2_is_checked = False
         self.btn2.setChecked(self.button2_is_checked)
+        print('End stream2')
+        self._plot_ref = None
+        self.canvas.axes.cla()
+        print('End stream3')
 
     def btn4_click(self):
         if self.PicoConnected:
@@ -324,8 +343,17 @@ class MainWindow(QMainWindow):
         else:
             print('Already closed!')
 
-    def totalSample_changed(self, i):
-        self.totalSamples = i
+    def totalSample_changed(self, totalTime):
+        self.totalSamples = int(totalTime*self.global_multiplier[self.totaltime_unit]/(self.sampleInterval*self.global_multiplier[self.sampleInterval_unit]))
+        if self.PicoConnected:
+            self.pico.reinititialiseChannels(self.buffersize, self.sampleInterval, self.totalSamples)
+
+    def sampleInterval_changed(self, sampleInterval):
+        self.totalSamples = int(self.totalSamples*self.sampleInterval/sampleInterval)
+        self.sampleInterval = sampleInterval
+        print(self.totalSamples)
+        if self.PicoConnected:
+            self.pico.reinititialiseChannels(self.buffersize, self.sampleInterval, self.totalSamples)
 
     def check1_changed(self):
         if not self.Check1_is_checked:

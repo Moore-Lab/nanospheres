@@ -34,10 +34,10 @@ class PicoScope:
         self.setSampleinterval(sampleInterval)
         self.setSampleunits(sampleUnit)
         self.setTotalsamples(totalSamples)
+        self.bufferMax = np.zeros(shape=(self.numChannels, self._buffersize), dtype=np.int16)
         for cn, channel in enumerate(channels):
             self.setChannel(channel = channel)
             # Create buffers ready for assigning pointers for data collection
-            self.bufferMax = np.zeros(shape=(self.numChannels, self._buffersize), dtype=np.int16)
             self.setBuffersize(channel = channel, cn = cn)
     
     def open(self):
@@ -84,6 +84,19 @@ class PicoScope:
     def setTotalsamples(self, totalSamples):
         self._totalSamples = totalSamples
         totalSamples = totalSamples
+
+    def reinititialiseChannels(self, buffersize, sampleInterval, totalSamples):
+        self._buffersize = buffersize
+
+        self.setSampleinterval(sampleInterval)
+        self.setTotalsamples(totalSamples)
+
+        self.bufferMax = np.zeros(shape=(self.numChannels, self._buffersize), dtype=np.int16)
+
+        for cn, channel in enumerate(self._channels):
+            # Create buffers ready for assigning pointers for data collection
+            self.setBuffersize(channel = channel, cn = cn)
+
 
     def makeCfunctionpointer(self):
 
