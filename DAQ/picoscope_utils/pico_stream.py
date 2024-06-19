@@ -15,24 +15,24 @@ Set parameters here
 
 # Channel E does not work... apparently it isn't a legit Key...
 
-channels = ['A', 'B', 'C', 'D', 'F', 'G', 'H']
+channels = ['A'] #['A', 'B', 'C', 'D', 'F', 'G', 'H']
 
 # ranges: 0=10 mV, 1=20 mV, 2=50 mV, 3=100mV, 4=200 mV, 5=500 mV, 6=1000 mV, 7=2000 mV, 8=5000 mV, 9=10000 mV, 10=20000 mV, 11=50000 mV]
-channel_ranges = [0, 0, 0, 0, 0, 0, 0]
-analogue_offsets = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+channel_ranges = [6] # [0, 0, 0, 0, 0, 0, 0]
+analogue_offsets = [0.0] #[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-filename = 'D:/Lab Data/Picoscope Test/Tmp/test' # Location to save data
+filename = 'D:/Lab Data/Picoscope Test/Tmp/test12' # Location to save data
 
 enabled = 1
 disabled = 0
 
-ADC_convert = False # Convert to mV? This increases the dead time
+ADC_convert = True # Convert to mV? This increases the dead time
 
 # Size of capture
 bufferLength = 1 # in seconds
 numBuffersToCapture = 1 # just leave this at 1 for now - will probably need to play with this when want to look at data that hasn't yet been saved.
 num_files = 1 # number of files t0 capture
-sample_interval = 1 # in us
+sample_interval = 10 # in us
 
 """
 End of set parameters
@@ -198,9 +198,9 @@ def load_data_hdf5(filename):
 End of functions
 """
 
-sizeOfOneBuffer = int(bufferLength*sample_interval*10**6)
+sizeOfOneBuffer = int(bufferLength/sample_interval*10**6)
 totalSamples = sizeOfOneBuffer * numBuffersToCapture
-total_length = totalSamples*sample_interval
+total_length = totalSamples*sample_interval/10**6
 # Turn on the picoscope
 chandle, status = pico_TurnOn()
 
