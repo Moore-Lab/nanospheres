@@ -195,7 +195,7 @@ def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_gu
     force_psd = np.abs(np.fft.rfft(force))**2
     force_freqs = np.fft.rfftfreq(len(force), d=time[1]-time[0])
 
-    res_wind = np.abs(force_freqs - bp[1]/(2*np.pi)) < search_wind
+    res_wind = np.abs(force_freqs - bp[1]/(2*np.pi)) < search_wind*4
     force_norm = np.median(np.sqrt(force_psd[res_wind]))
 
     force /= force_norm
