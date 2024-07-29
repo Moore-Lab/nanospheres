@@ -142,7 +142,7 @@ def find_impulses(drive, make_plot=False):
     pulse_idx = np.where((drive > threshold*max_val) & (np.roll(drive,-1) < threshold*max_val))[0] 
 
     if(make_plot):
-        plt.figure(figsize=(12,4))
+        #plt.figure(figsize=(12,4))
         plt.plot(drive)
         plt.plot(pulse_idx, drive[pulse_idx], 'ro')
         plt.show()
@@ -158,7 +158,7 @@ def abs_chi2(f, A, omega0, gamma):
     return A*np.abs(1/(omega0**2 - omega**2 + 1j*omega*gamma))**2
 
 def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_guess = 65e3, 
-                         search_wind=10e3, gamma=1e3, cal_fac=2e14, lp_freq=200e3, ax_list = []):
+                         search_wind=10e3, gamma=1e3, cal_fac=1e-8, lp_freq=200e3, ax_list = []):
 
     fit_points = (time > fit_window[0]) & (time < fit_window[1])
     pow2_len = 2**int(np.log2(np.sum(fit_points)))
@@ -188,9 +188,11 @@ def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_gu
     except RuntimeError:
         bp = spars
 
-    #bp[2] = 2.5e3
+    #bp[0] = 1
+    #bp[2] = 200
+    #print(bp)
 
-    force_tilde = data_fft/chi(freqs, *bp)
+    force_tilde = data_fft/chi(freqs, 1, bp[1], bp[2])
     force = np.fft.irfft(force_tilde) * cal_fac
 
     #remove edge effects
