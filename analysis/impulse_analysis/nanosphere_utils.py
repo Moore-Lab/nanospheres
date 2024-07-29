@@ -181,7 +181,10 @@ def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_gu
 
     pts_to_use = np.abs(freqs - f0) < search_wind
     spars = [(np.max(np.abs(data_fft[pts_to_use])*omega0*gamma)**2), omega0, gamma]
-    bp, _ = op.curve_fit(abs_chi2, freqs[pts_to_use], np.abs(data_fft[pts_to_use])**2, p0=spars)
+    try:
+        bp, _ = op.curve_fit(abs_chi2, freqs[pts_to_use], np.abs(data_fft[pts_to_use])**2, p0=spars)
+    except RuntimeError:
+        bp = spars
 
     #bp[2] = 2.5e3
 
@@ -219,12 +222,18 @@ def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_gu
         plt.xlim(f0_guess-search_wind, f0_guess+search_wind)
     
         plt.figure(figsize=(12,4))
-        plt.plot(curr_time, curr_filtered_data)
+        plt.plot(curr_time, curr_filtered_data, label="Position")
+        plt.ylabel("Z position [V]")
         ax1 = plt.gca()
 
         ax2 = plt.twinx()
-        ax2.plot(curr_time, force, 'orange')
-        ax2.plot(curr_time, force_lp, 'red')
-        ax2.plot(curr_time[:max_idx], force[:max_idx], 'green')
+        ax2.plot(curr_time, force, 'orange', label='Force')
+        ax2.plot(curr_time, force_lp, 'red', label="Force (filt)")
+        #ax2.plot(curr_time[:max_idx], force[:max_idx], 'green', label="Prepulse")
+
+        plt.xlabel("Time [s]")
+        plt.ylabel("Force [arb units]")
+
+        plt.legend(loc='upper left')
 
     return np.max(force), np.max(force_lp), bp[1], bp[2]
