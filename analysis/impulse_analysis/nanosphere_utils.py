@@ -259,6 +259,6 @@ def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_gu
         plt.ylabel("Force [arb units]")
 
         plt.legend(loc='upper left')
-        plt.title("Pulse at time $t = %.5f$ s"%(cent_time))
+        plt.title("Pulse at time $t = %.5f$ s, norm = %.2e"%(cent_time, force_norm))
 
     return amp, amp_lp, force_norm, bp[1], bp[2]
