@@ -192,11 +192,14 @@ def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_gu
     force[:100] = 0
     force[-100:] = 0
 
-    force_psd = np.abs(np.fft.rfft(force))**2
-    force_freqs = np.fft.rfftfreq(len(force), d=time[1]-time[0])
+    max_idx = int(len(force)/2) - 200 ## only look at the first part of the waveform to avoid
+                                     ## the pulse affecting things
+    force_psd = np.abs(np.fft.rfft(force[:max_idx]))**2 
+    force_freqs = np.fft.rfftfreq(len(force[:max_idx]), d=time[1]-time[0])
 
     res_wind = np.abs(force_freqs - bp[1]/(2*np.pi)) < search_wind*4
     force_norm = np.median(np.sqrt(force_psd[res_wind]))
+    #force_norm = np.std(force[:max_idx])
 
     force /= force_norm
     force_lp = sp.filtfilt(*sp.butter(3, lp_freq, btype='low', fs=1/(time[1]-time[0])), force)
@@ -222,5 +225,6 @@ def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_gu
         ax2 = plt.twinx()
         ax2.plot(curr_time, force, 'orange')
         ax2.plot(curr_time, force_lp, 'red')
+        ax2.plot(curr_time[:max_idx], force[:max_idx], 'green')
 
     return np.max(force), np.max(force_lp), bp[1], bp[2]
