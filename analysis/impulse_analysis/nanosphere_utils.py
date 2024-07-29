@@ -158,7 +158,7 @@ def abs_chi2(f, A, omega0, gamma):
     return A*np.abs(1/(omega0**2 - omega**2 + 1j*omega*gamma))**2
 
 def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_guess = 65e3, 
-                         search_wind=10e3, gamma=1e3, cal_fac=2e14, lp_freq=200e3):
+                         search_wind=10e3, gamma=1e3, cal_fac=2e14, lp_freq=200e3, ax_list = []):
 
     fit_points = (time > fit_window[0]) & (time < fit_window[1])
     pow2_len = 2**int(np.log2(np.sum(fit_points)))
@@ -170,6 +170,8 @@ def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_gu
 
     curr_time = time[fit_points]
     curr_filtered_data = filtered_data[fit_points]
+    cent_time_idx = np.argmin(np.abs(curr_time - cent_time))
+
 
     data_fft = np.fft.rfft(curr_filtered_data)
     freqs = np.fft.rfftfreq(len(curr_filtered_data), d=time[1]-time[0])
@@ -203,37 +205,60 @@ def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_gu
     res_wind = np.abs(force_freqs - bp[1]/(2*np.pi)) < search_wind*4
     force_norm = np.median(np.sqrt(force_psd[res_wind]))
     #force_norm = np.std(force[:max_idx])
-
-    force /= force_norm
+    #force /= force_norm
     force_lp = sp.filtfilt(*sp.butter(3, lp_freq, btype='low', fs=1/(time[1]-time[0])), force)
+
+    search_idx_buff = 20
+    force_to_search = force[(cent_time_idx-search_idx_buff):cent_time_idx]
+    force_lp_to_search = force_lp[(cent_time_idx-search_idx_buff):cent_time_idx]
+
+    amp = np.max(force_to_search) 
+    amp_idx = np.argmax(force_to_search)
+    print(amp, amp_idx)
+    amp_lp = np.max(force_lp_to_search) 
+    amp_lp_idx = np.argmax(force_lp_to_search)
 
     if(make_plot):
     
-        plt.figure()
+        if(len(ax_list) ==3):
+            plt.sca(ax_list[0])
+        else:
+            plt.figure()
         plt.loglog(force_freqs, np.sqrt(force_psd))
         plt.plot(bp[1]/(2*np.pi), force_norm, 'ro')
-        plt.xlabel("Frequency [Hz]")    
-        plt.ylabel("PSD")
+        plt.xlabel("Frequency [Hz]")
+        plt.ylabel("PSD [V$^2$/Hz]")
+        plt.title("Pulse at time $t = %.5f$ s"%(cent_time))
 
-        plt.figure()
+        if(len(ax_list) == 3):
+            plt.sca(ax_list[1])
+        else:
+            plt.figure()
         plt.plot(freqs, np.abs(data_fft)**2, 'ko')
         chi_psd = abs_chi2(freqs, *bp)
         plt.plot(freqs, chi_psd, 'orange')
         plt.xlim(f0_guess-search_wind, f0_guess+search_wind)
+        plt.xlabel("Frequency [Hz]")
+        plt.ylabel("PSD [V$^2$/Hz]")
+        plt.title("Pulse at time $t = %.5f$ s"%(cent_time))
     
-        plt.figure(figsize=(12,4))
+        if(len(ax_list) ==3):
+            plt.sca(ax_list[2])
+        else:
+            plt.figure(figsize=(12,4))
         plt.plot(curr_time, curr_filtered_data, label="Position")
         plt.ylabel("Z position [V]")
-        ax1 = plt.gca()
-
         ax2 = plt.twinx()
         ax2.plot(curr_time, force, 'orange', label='Force')
+        ax2.plot(curr_time[cent_time_idx-search_idx_buff+amp_idx], amp, 'orange', marker='o', markerfacecolor='white')
         ax2.plot(curr_time, force_lp, 'red', label="Force (filt)")
+        ax2.plot(curr_time[cent_time_idx-search_idx_buff+amp_lp_idx], amp_lp, 'red', marker='o', markerfacecolor='white')
         #ax2.plot(curr_time[:max_idx], force[:max_idx], 'green', label="Prepulse")
 
         plt.xlabel("Time [s]")
         plt.ylabel("Force [arb units]")
 
         plt.legend(loc='upper left')
+        plt.title("Pulse at time $t = %.5f$ s"%(cent_time))
 
-    return np.max(force), np.max(force_lp), bp[1], bp[2]
+    return amp, amp_lp, force_norm, bp[1], bp[2]
