@@ -154,11 +154,11 @@ def find_impulses(drive, make_plot=False):
 
 def chi(f, A, omega0, gamma):
     omega = 2*np.pi*f
-    return A/(omega0**2 - omega**2 + 1j*omega*gamma)
+    return A/(omega0**2 - omega**2 - 1j*omega*gamma)
 
 def abs_chi2(f, A, omega0, gamma):
     omega = 2*np.pi*f
-    return A*np.abs(1/(omega0**2 - omega**2 + 1j*omega*gamma))**2
+    return A*np.abs(1/(omega0**2 - omega**2 - 1j*omega*gamma))**2
 
 def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_guess = 65e3, 
                          search_wind=10e3, gamma=1e3, cal_fac=1e-8, lp_freq=200e3, ax_list = []):
