@@ -6,7 +6,7 @@ import scipy.optimize as op
 
 hz_to_khz = 1e-3
 
-def get_psd(sphere_z, tstep, filtered_data = [], nperseg=2**16, make_plot = False):
+def get_psd(sphere_z, tstep, filtered_data = [], nperseg=2**16, make_plot = False, fig=[]):
 
     f, zpsd = sp.welch(sphere_z, fs=1/tstep, nperseg=nperseg)
 
@@ -17,23 +17,26 @@ def get_psd(sphere_z, tstep, filtered_data = [], nperseg=2**16, make_plot = Fals
         zpsd_filt = []
 
     if(make_plot):
-        plt.figure(figsize=(12,4))
+        if(fig):
+            plt.figure(fig.number)
+        else:
+            plt.figure(figsize=(12,4))
         plt.subplot(1,2,1)
-        plt.semilogy(f*hz_to_khz, zpsd)
-        plt.semilogy(f_filt*hz_to_khz, zpsd_filt)
+        plt.semilogy(f*hz_to_khz, zpsd, label="Data")
+        plt.semilogy(f_filt*hz_to_khz, zpsd_filt, label="Filtered")
         plt.xlim(0, 200)
         plt.xlabel("Frequency (kHz)")
         plt.ylabel("Z PSD [V$^2$/Hz]")
         plt.ylim(np.min(zpsd), np.max(zpsd))
+        plt.legend()
 
         plt.subplot(1,2,2)
         plt.semilogy(f*hz_to_khz, zpsd)
         plt.semilogy(f_filt*hz_to_khz, zpsd_filt)
-        plt.xlim(60, 70)
+        plt.xlim(55, 67)
         plt.xlabel("Frequency (kHz)")
         plt.ylabel("Z PSD [V$^2$/Hz]")
         plt.ylim(np.min(zpsd), np.max(zpsd))
-        plt.show()
 
 
     return f, zpsd, f_filt, zpsd_filt
@@ -164,8 +167,8 @@ def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_gu
     pow2_len = 2**int(np.log2(np.sum(fit_points)))
     cent_time = np.mean(fit_window)
     cent_time_idx = np.argmin(np.abs(time - cent_time)) 
-    if(cent_time_idx + int(pow2_len/2)+1 > len(time)):
-        return -1, -1, -1, -1
+    if(cent_time_idx + int(pow2_len/2)+1 > len(time) or cent_time_idx - int(pow2_len/2) < 0):
+        return -1, -1, -1, -1, -1
     fit_points = (time > time[cent_time_idx - int(pow2_len/2)]) & (time < time[cent_time_idx + int(pow2_len/2)+1])
 
     curr_time = time[fit_points]
