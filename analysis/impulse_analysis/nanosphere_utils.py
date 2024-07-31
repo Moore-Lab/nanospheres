@@ -2,11 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as sp
 import scipy.optimize as op
-
+from scipy.special import voigt_profile
 
 hz_to_khz = 1e-3
 
-def get_psd(sphere_z, tstep, filtered_data = [], nperseg=2**16, make_plot = False, fig=[]):
+def get_psd(sphere_z, tstep, filtered_data = [], nperseg=2**18, make_plot = False, fig=[], f0=63e3, search_wind=10e3):
 
     f, zpsd = sp.welch(sphere_z, fs=1/tstep, nperseg=nperseg)
 
@@ -16,6 +16,16 @@ def get_psd(sphere_z, tstep, filtered_data = [], nperseg=2**16, make_plot = Fals
         f_filt = []
         zpsd_filt = []
 
+    ## now also make force noise plot
+    pts_to_use = np.abs(f - f0) < search_wind
+    spars = [3e-3, 2*np.pi*f0, 1e1, 1e3]
+    try:
+        bp, _ = op.curve_fit(abs_chi2_smear, f[pts_to_use], zpsd[pts_to_use], p0=spars, sigma = 0.1*np.sqrt(zpsd[pts_to_use]))
+    except RuntimeError:
+        bp = spars
+    #bp = spars
+    #print(bp)
+
     if(make_plot):
         if(fig):
             plt.figure(fig.number)
@@ -24,6 +34,7 @@ def get_psd(sphere_z, tstep, filtered_data = [], nperseg=2**16, make_plot = Fals
         plt.subplot(1,2,1)
         plt.semilogy(f*hz_to_khz, zpsd, label="Data")
         plt.semilogy(f_filt*hz_to_khz, zpsd_filt, label="Filtered")
+        plt.semilogy(f*hz_to_khz, abs_chi2_smear(f, *bp), 'r', label="Fit")
         plt.xlim(0, 200)
         plt.xlabel("Frequency (kHz)")
         plt.ylabel("Z PSD [V$^2$/Hz]")
@@ -33,10 +44,14 @@ def get_psd(sphere_z, tstep, filtered_data = [], nperseg=2**16, make_plot = Fals
         plt.subplot(1,2,2)
         plt.semilogy(f*hz_to_khz, zpsd)
         plt.semilogy(f_filt*hz_to_khz, zpsd_filt)
-        plt.xlim(55, 67)
+        plt.xlim((f0-search_wind)*hz_to_khz, (f0+search_wind)*hz_to_khz)
+        plt.semilogy(f[pts_to_use]*hz_to_khz, abs_chi2_smear(f[pts_to_use], *bp), 'r', 
+                     label="$f_0$ = %.1f kHz\n$\gamma$ = %.1f Hz\n$\sigma$ = %.1f Hz"%(bp[1]/(2*np.pi)*hz_to_khz, bp[2],  bp[3]))
+        #plt.semilogy(f[pts_to_use]*hz_to_khz, abs_chi2_smear(f[pts_to_use], bp[0], bp[1], bp[2], 0, bp[4]), 'r', label="Fit (Lorentzian only)")
         plt.xlabel("Frequency (kHz)")
         plt.ylabel("Z PSD [V$^2$/Hz]")
         plt.ylim(np.min(zpsd), np.max(zpsd))
+        plt.legend()
 
 
     return f, zpsd, f_filt, zpsd_filt
@@ -159,6 +174,11 @@ def chi(f, A, omega0, gamma):
 def abs_chi2(f, A, omega0, gamma):
     omega = 2*np.pi*f
     return A*np.abs(1/(omega0**2 - omega**2 - 1j*omega*gamma))**2
+
+def abs_chi2_smear(f, A, omega0, gamma, sigma, c=1.5e-12):
+    omega = 2*np.pi*f
+    x = (omega - omega0)
+    return A*voigt_profile(x, sigma, gamma) + np.abs(c)
 
 def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_guess = 65e3, 
                          search_wind=10e3, gamma=1e3, cal_fac=1e-8, lp_freq=200e3, ax_list = []):
