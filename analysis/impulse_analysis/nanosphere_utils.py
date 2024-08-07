@@ -178,10 +178,14 @@ def abs_chi2(f, A, omega0, gamma):
 def abs_chi2_smear(f, A, omega0, gamma, sigma, c=1.5e-12):
     omega = 2*np.pi*f
     x = (omega - omega0)
-    return A*voigt_profile(x, sigma, gamma) + np.abs(c)
+    return np.abs(A)*voigt_profile(x, np.abs(sigma), np.abs(gamma)) + np.abs(c)
+
+def gauss_bkg(x, A, mu, sigma, c=1.5e-12):
+    omega = 2*np.pi*x   
+    return A*np.exp(-(omega-mu)**2/(2*sigma**2)) + np.abs(c)
 
 def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_guess = 65e3, 
-                         search_wind=10e3, gamma=1e3, cal_fac=1e-8, lp_freq=200e3, ax_list = []):
+                         search_wind=10e3, gamma=1e3, C=0, cal_fac=1e-8, lp_freq=200e3, ax_list = []):
 
     fit_points = (time > fit_window[0]) & (time < fit_window[1])
     pow2_len = 2**int(np.log2(np.sum(fit_points)))
@@ -214,9 +218,17 @@ def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_gu
     #bp[0] = 1
     #bp[2] = 200
     #print(bp)
+        
 
-    force_tilde = data_fft/chi(freqs, 1, bp[1], bp[2])
+    curr_chi = chi(freqs, 1, bp[1], bp[2])
+    force_tilde = data_fft/(curr_chi + C/np.conjugate(curr_chi))
     force = np.fft.irfft(force_tilde) * cal_fac
+
+    # plt.close('all')
+    # plt.figure()
+    # plt.plot(time[:pow2_len]-time[pow2_len//2],np.roll(np.fft.irfft(1/(curr_chi + C/np.conjugate(curr_chi))), pow2_len//2))
+    # plt.xlim(-1e-4, 1e-4)
+    # plt.show()
 
     #remove edge effects
     force[:100] = 0
