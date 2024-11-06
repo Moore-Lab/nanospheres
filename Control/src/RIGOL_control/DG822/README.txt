@@ -1,0 +1,1 @@
+DG822_control has some functions for controlling the RIGOL DG822 function generator. This is no way near as refined as for the Tektronix AFG. Although I think we could pretty much convert the Tektronix file if we wanted. The main thing it does is has a pulse function in it which sets the RIGOL to pulse for triggering the HV source for charging.
