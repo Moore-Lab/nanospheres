@@ -4,8 +4,6 @@ import numpy as np
 from typing import Tuple, List, Union
 import time
 
-_VISA_ADDRESS = "USB0::0x1AB1::0x0643::DG8A204201834::INSTR"
-
 class FuncGen:
 
     def __init__(self, visa_address):
@@ -14,7 +12,7 @@ class FuncGen:
     
     def open(self, visa_address):
         rm = pyvisa.ResourceManager()
-        self._inst = rm.open_resource(_VISA_ADDRESS)
+        self._inst = rm.open_resource(self._visa_address)
         self.write("*CLS")
         self._id = self.query("*IDN?") 
         self._maker, self._model, self._serial = self._id.split(",")[:3]
