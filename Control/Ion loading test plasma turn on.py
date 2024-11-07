@@ -22,8 +22,6 @@ FREQ_PULSE = 0.2
 
 _VISA_ADDRESS_rigol = 'USB0::0x1AB1::0x0643::DG8A261500548::INSTR'
 
-# Apply a *negative* impulse every five seconds
-# the signal is sent to the HV amplifier with a negative polarity
 DG822 = rig.FuncGen(_VISA_ADDRESS_rigol)
 
 control_voltage = VOLT/500
