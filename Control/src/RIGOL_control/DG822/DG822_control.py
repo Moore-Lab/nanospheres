@@ -48,6 +48,26 @@ class FuncGen:
         cmd = f"{source}FUNCtion:PULSe:DCYCle {duty}"
         self.write(cmd)
 
+    def sin_wave(self, channel=1, amp=-5, off=0, freq=1000):
+    
+        source = f"SOURce{channel}:"
+
+        shape = "SINusoid"
+        cmd = f"{source}FUNCtion:SHAPe {shape}"
+        self.write(cmd)
+
+        unit = "Vpp"
+        cmd = f"{source}VOLTage:LEVel {amp}{unit}"
+        self.write(cmd)
+
+        unit = "V"
+        cmd = f"{source}VOLTage:OFFSet  {off}{unit}"
+        self.write(cmd)
+
+        unit = "Hz"
+        cmd = f"{source}FREQuency:FIXed  {freq}{unit}"
+        self.write(cmd)
+
     def turn_on(self, channel = 1):
         cmd = f"OUTPut{channel}:STATe {1}"
         self.write(cmd)
