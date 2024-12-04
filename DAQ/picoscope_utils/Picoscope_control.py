@@ -36,7 +36,7 @@ class PicoScope:
         self.setTotalsamples(totalSamples)
         self.bufferMax = np.zeros(shape=(self.numChannels, self._buffersize), dtype=np.int16)
         for cn, channel in enumerate(channels):
-            self.setChannel(channel = channel, channel_range=ranges[cn])
+            self.setChannel(channel = channel, channel_range=ranges[channel])
             # Create buffers ready for assigning pointers for data collection
             self.setBuffersize(channel = channel, cn = cn)
     
