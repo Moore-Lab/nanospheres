@@ -21,14 +21,14 @@ class PicoScope:
 
     """
 
-    def __init__(self, channels, buffersize, sampleInterval, sampleUnit, totalSamples):
+    def __init__(self, channels, buffersize, sampleInterval, sampleUnit, totalSamples, ranges):
         self._channels = channels
         self._buffersize = buffersize
         self._sampleInterval = sampleInterval
         self._sampleUnit = sampleUnit
         self._totalSamples = totalSamples
         self.numChannels = len(channels)
-        self._ranges = {}
+        self._ranges = ranges
 
         self.open()
         self.setSampleinterval(sampleInterval)
@@ -36,7 +36,7 @@ class PicoScope:
         self.setTotalsamples(totalSamples)
         self.bufferMax = np.zeros(shape=(self.numChannels, self._buffersize), dtype=np.int16)
         for cn, channel in enumerate(channels):
-            self.setChannel(channel = channel)
+            self.setChannel(channel = channel, channel_range=ranges[channel])
             # Create buffers ready for assigning pointers for data collection
             self.setBuffersize(channel = channel, cn = cn)
     

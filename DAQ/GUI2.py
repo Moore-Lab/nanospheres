@@ -221,7 +221,7 @@ class MainWindow(QMainWindow):
 
     def PicoConnect(self):
         print(self.totalSamples)
-        self.pico = pc.PicoScope(channels = ["A"], buffersize = self.buffersize, sampleInterval = self.sampleInterval, sampleUnit = "US", totalSamples = self.totalSamples)
+        self.pico = pc.PicoScope(channels = ["A"], buffersize = self.buffersize, sampleInterval = self.sampleInterval, sampleUnit = "US", totalSamples = self.totalSamples, ranges={"A":10})
         self.pico.init_buffersComplete()
 
     def update_plot(self):
@@ -242,7 +242,7 @@ class MainWindow(QMainWindow):
             # .plot returns a list of line <reference>s, as we're
             # only getting one we can take the first element.
             plot_refs = self.canvas.axes.plot(self.xdata, self.ydata, 'r')
-            self.canvas.axes.set_ylim(-20000, 20000)
+            self.canvas.axes.set_ylim(-40000, 40000)
             self._plot_ref = plot_refs[0]
         else:
             # We have a reference, we can use it to update the data for that line.
