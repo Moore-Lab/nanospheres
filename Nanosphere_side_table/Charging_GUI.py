@@ -354,9 +354,10 @@ class MainWindow(QMainWindow):
                 print(self.pico._channels)
                 print(self.pico._ranges)
                 #output = self.adc2mV2(self.pico.buffersComplete[0], channels = self.pico._channels, range = self.pico._ranges)
-                output = self.pico.buffersComplete[0]*10/32767
-                mdict = {'D': output}
-                filename = 'D:/Experiment/Calibration/20241217/Particle 1/Charge before.hdf5'
+                output = self.pico.buffersComplete[0]/32767*10
+                Tint = self.sampleInterval*self.global_multiplier[self.sampleInterval_unit]/10**9
+                mdict = {'D': output, 'Tinterval': [Tint]}
+                filename = 'D:/Experiment/Calibration/20241217/Particle 1/Charge before2.hdf5'
                 self.pico.save_data_hdf5(filename, mdict)
                 print('Saved!')
             self.pico.stop()
@@ -367,18 +368,20 @@ class MainWindow(QMainWindow):
                 self.pico.Stream()
                 if self.Check1_is_checked:
                     print('Saving...')
-                    output = self.pico.buffersComplete[0]*10/32767
-                    mdict = {'D': output}
-                    filename = 'D:/Experiment/Calibration/20241217/Particle 1/Charge before.hdf5'
+                    output = self.pico.buffersComplete[0]/32767*10
+                    Tint = self.sampleInterval*self.global_multiplier[self.sampleInterval_unit]/10**9
+                    mdict = {'D': output, 'Tinterval': [Tint]}
+                    filename = 'D:/Experiment/Calibration/20241217/Particle 1/Charge before2.hdf5'
                     self.pico.save_data_hdf5(filename, mdict)
                     print('Saved!')
         else:
             self.pico.Stream()
             if self.Check1_is_checked:
                 print('Saving...')
-                output = self.pico.buffersComplete[0]*10/32767
-                mdict = {'D': output}
-                filename = 'D:/Experiment/Calibration/20241217/Particle 1/Charge before.hdf5'
+                output = self.pico.buffersComplete[0]/32767*10
+                Tint = self.sampleInterval*self.global_multiplier[self.sampleInterval_unit]/10**9
+                mdict = {'D': output, 'Tinterval': [Tint]}
+                filename = 'D:/Experiment/Calibration/20241217/Particle 1/Charge before2.hdf5'
                 self.pico.save_data_hdf5(filename, mdict)
                 print('Saved!')
             if self.Check2_is_checked:
