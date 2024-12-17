@@ -29,6 +29,7 @@ class PicoScope:
         self._totalSamples = totalSamples
         self.numChannels = len(channels)
         self._ranges = ranges
+        self.Stream_status = 0
 
         self.open()
         self.setSampleinterval(sampleInterval)
@@ -41,6 +42,7 @@ class PicoScope:
             self.setBuffersize(channel = channel, cn = cn)
     
     def open(self):
+        print('Connecting to picoscope...')
         self.chandle = ctypes.c_int16()
         self.status = {}
 
@@ -48,6 +50,7 @@ class PicoScope:
         # Returns handle to chandle for use in future API functions
         self.status["openunit"] = ps.ps4000aOpenUnit(ctypes.byref(self.chandle), None)
         assert_pico_ok(self.status["openunit"])
+        print('Connected to picoscope!')
 
     def setChannel(self, channel = "A", channel_range = 6, analogue_offset = 0.0):
         enabled = 1
@@ -160,6 +163,7 @@ class PicoScope:
         self.buffersComplete = np.zeros(shape=(self.numChannels, self._totalSamples), dtype=np.int16)
 
     def Stream(self):
+        self.Stream_status = 1
         self.init_buffersComplete()
         self.nextSample = 0
         self.autoStopOuter = False
@@ -192,6 +196,7 @@ class PicoScope:
                 # If we weren't called back by the driver, this means no data is ready. Sleep for a short while before trying
                 # again.
                 time.sleep(0.01)
+        self.Stream_status = 0
 
     #def plot(self, buffers):
     #    for buffer in buffers:
@@ -226,8 +231,10 @@ class PicoScope:
             for key in keys:
                 f[key] = data[key]
 
-#pico = PicoScope(channels = ["A", "B"], buffersize = 10000, sampleInterval = 100, sampleUnit = "US", totalSamples = 10000)
-#pico.Stream()
-#pico.plot(pico.buffersComplete[0])
-#pico.stop()
-#pico.close()
+
+if __name__ == "__main__":
+    pico = PicoScope(channels = ["A", "B"], buffersize = 10000, sampleInterval = 100, sampleUnit = "US", totalSamples = 10000, ranges = {'A':7, 'B':7})
+    pico.Stream()
+    pico.plot(pico.buffersComplete[0])
+    pico.stop()
+    pico.close()

@@ -15,34 +15,21 @@ Does this using pulses to make it more controllable - just turning it on makes i
 Will only work in the 1 - 10 mbar pressure range.
 """
 
-def DAQ_stream(DAQ):
+def DAQ_stream(x):
     
-    print('DAQ recording')
-    DAQ.stop()
-    DAQ.close()
-    print('Finished streaming')
+    print(x)
     
-def pulse_and_sin_run(DG822):
-    DG822.turn_on(channel = 1)
-    print('Drive on')
-    time.sleep(5)
-    DG822.turn_on(channel = 2)
-    print('HV triggered')
+def pulse_and_sin_run(x):
+    
+    print(x)
 
-    # Hold in loop until cancel - have 10 minute timeout
-    i = 0
-    while i < 34:
-        try:
-            time.sleep(1)
-            i+=1
-        except KeyboardInterrupt:
-            break
 
-    DG822.turn_off(channel = 1)
-    print('Drive off')
-    DG822.turn_off(channel = 2)
-    print('HV switched off')
 
+# For paralellisation 
+
+
+
+# Actually running
 if __name__ == '__main__':
 
     ####
@@ -100,20 +87,13 @@ if __name__ == '__main__':
     DG822.pulse(channel = 2, amp=control_voltage, duty=4, freq=FREQ_PULSE, off=control_voltage/2)
     #DG822.pulse(amp=VOLT, duty=50, freq=FREQ_PULSE, off=-VOLT/2)
 
-    DAQ = pico.PicoScope(channels, buffersize, sampleInterval, sampleUnit, totalSamples, ranges)
-
+    #DAQ = pico.PicoScope(channels, buffersize, sampleInterval, sampleUnit, totalSamples, ranges)
+    print('bloop')
     # Ouput signals
-
-    # For paralellisation 
-
-
-
-    # Actually running
-
     print('Bleep bloop')
-    p1 = Process(target=DAQ_stream, args = [DAQ])
+    p1 = Process(target=DAQ_stream, args = [1])
     print('here')
-    p2 = Process(target=pulse_and_sin_run, args = [DG822])
+    p2 = Process(target=pulse_and_sin_run, args = [2])
 
     p1.start()
     time.sleep(5)
@@ -123,14 +103,9 @@ if __name__ == '__main__':
     p2.join()
     print('here3')
 
-    print(DAQ.Stream_status)
-    print(DAQ.buffersComplete[0])
 
-    while DAQ.Stream_status == 1:
-        time.sleep(1)
-
-    DAQ.save_data_hdf5(filename, {'data':DAQ.buffersComplete[0]})
-    DAQ.stop()
-    DAQ.close()
+    #DAQ.save_data_hdf5(filename, {'data':DAQ.buffersComplete[0]})
+    #DAQ.stop()
+    #DAQ.close()
 
     print('Program ends')
