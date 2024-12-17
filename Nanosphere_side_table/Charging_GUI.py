@@ -82,7 +82,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
 
-        self.setWindowTitle("My App")
+        self.setWindowTitle("Charge monitor")
         self.PicoConnected = False
         self.totalSamples = 100000
         self.sampleInterval = 1000
@@ -105,6 +105,8 @@ class MainWindow(QMainWindow):
         layout2 = QVBoxLayout()
         layout3 = QVBoxLayout()
 
+        self.title1 = QLabel("Picoscope")
+
         layout1.setContentsMargins(0,0,0,0)
         layout1.setSpacing(20)
 
@@ -125,7 +127,8 @@ class MainWindow(QMainWindow):
 
         self.btn4 = QPushButton("Stop and close")
         self.btn4.clicked.connect(self.btn4_click)
-
+        
+        layout2.addWidget(self.title1)
         layout2.addWidget(self.btn1)
         layout2.addWidget(self.btn2)
         layout2.addWidget(self.btn3)
@@ -199,7 +202,10 @@ class MainWindow(QMainWindow):
         layout7.addWidget(self.l3_double3)
         layout7.addWidget(self.l3_drop3)
 
+        self.filename_box = QLineEdit('D:/Experiment/Calibration/test.hdf5')
+
         layout3.addLayout(layout4)
+        layout3.addWidget(self.filename_box)
         layout3.addWidget(l3_label1)
         layout3.addLayout(layout5)
         layout3.addWidget(l3_label2)
@@ -211,6 +217,8 @@ class MainWindow(QMainWindow):
 
         layout8 = QVBoxLayout()
 
+        self.title2 = QLabel("RIGOL function generator")
+        
         self.btn5 = QPushButton("Connect")
         self.btn5.clicked.connect(self.btn5_click)
 
@@ -223,6 +231,7 @@ class MainWindow(QMainWindow):
         self.btn7 = QPushButton("Stop")
         self.btn7.clicked.connect(self.btn7_click)
 
+        layout8.addWidget(self.title2)
         layout8.addWidget(self.btn5)
         layout8.addWidget(self.btn6)
         layout8.addWidget(self.btn7)
@@ -247,23 +256,6 @@ class MainWindow(QMainWindow):
 
         self.threadpool = QThreadPool()
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
-
-        
-    def adc2mV2(bufferADC, channels, range): 
-        #adc2mc(
-        #        c_short_Array           bufferADC
-        #        int                     range
-        #        c_int32                 maxADC
-        #        ) 
-        #Takes a buffer of raw adc count values and converts it into millivolts
-        channelInputRanges = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000]
-        vRange = np.zeros(shape=(len(bufferADC), len(bufferADC[0])), dtype=np.int16)
-        for n, i in enumerate(channels):
-            vRange[n] += channelInputRanges[range[i]]
-
-        bufferV = (bufferADC * vRange) / 32767
-
-        return bufferV
         
 
     def PicoConnect(self):
@@ -357,7 +349,7 @@ class MainWindow(QMainWindow):
                 output = self.pico.buffersComplete[0]/32767*10
                 Tint = self.sampleInterval*self.global_multiplier[self.sampleInterval_unit]/10**9
                 mdict = {'D': output, 'Tinterval': [Tint]}
-                filename = 'D:/Experiment/Calibration/20241217/Particle 1/Charge before2.hdf5'
+                filename = self.filename_box.text()
                 self.pico.save_data_hdf5(filename, mdict)
                 print('Saved!')
             self.pico.stop()
@@ -371,7 +363,7 @@ class MainWindow(QMainWindow):
                     output = self.pico.buffersComplete[0]/32767*10
                     Tint = self.sampleInterval*self.global_multiplier[self.sampleInterval_unit]/10**9
                     mdict = {'D': output, 'Tinterval': [Tint]}
-                    filename = 'D:/Experiment/Calibration/20241217/Particle 1/Charge before2.hdf5'
+                    filename = self.filename_box.text()
                     self.pico.save_data_hdf5(filename, mdict)
                     print('Saved!')
         else:
@@ -381,7 +373,7 @@ class MainWindow(QMainWindow):
                 output = self.pico.buffersComplete[0]/32767*10
                 Tint = self.sampleInterval*self.global_multiplier[self.sampleInterval_unit]/10**9
                 mdict = {'D': output, 'Tinterval': [Tint]}
-                filename = 'D:/Experiment/Calibration/20241217/Particle 1/Charge before2.hdf5'
+                filename = self.filename_box.text()
                 self.pico.save_data_hdf5(filename, mdict)
                 print('Saved!')
             if self.Check2_is_checked:
