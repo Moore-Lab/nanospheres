@@ -91,6 +91,8 @@ class MainWindow(QMainWindow):
         self.totaltime_unit = 's'
         self.sampleInterval_unit = 'us'
         self.buffersize_unit = 'us'
+        self.channel = "D"
+        self.range = 0
 
         self.RIGOLConnected = False
         self.RIGOLOutputOn = False
@@ -136,8 +138,24 @@ class MainWindow(QMainWindow):
 
         layout1.addLayout( layout2 )
 
+        layout_canvas = QVBoxLayout()
+        layout_channels = QHBoxLayout()
+
+        self.canvas_drop_channel = QComboBox()
+        self.canvas_drop_channel.addItems(["A", "B", "D"])
+        self.canvas_drop_channel.currentIndexChanged.connect(self.channel_changed)
+
+        self.canvas_drop_range = QComboBox()
+        self.canvas_drop_range.addItems(["10 mV", "20 mV", "50 mV", "100mV", "200mV", "500mV", "1V", "2V", "5V", "10V", "20V", "50V"])
+        self.canvas_drop_range.currentIndexChanged.connect(self.range_changed)
+
         self.canvas = MplCanvas(self, width=5, height=4, dpi=100)
-        layout1.addWidget(self.canvas)
+
+        layout_channels.addWidget(self.canvas_drop_channel)
+        layout_channels.addWidget(self.canvas_drop_range)
+        layout_canvas.addLayout(layout_channels)
+        layout_canvas.addWidget(self.canvas)
+        layout1.addLayout(layout_canvas)
 
         l3_label1 = QLabel("Total time")
         l3_label2 = QLabel("Sampling interval")
@@ -260,7 +278,7 @@ class MainWindow(QMainWindow):
 
     def PicoConnect(self):
         print(self.totalSamples)
-        self.pico = pc.PicoScope(channels = ["D"], buffersize = self.buffersize, sampleInterval = self.sampleInterval, sampleUnit = "US", totalSamples = self.totalSamples, ranges={"D":0})
+        self.pico = pc.PicoScope(channels = [self.channel], buffersize = self.buffersize, sampleInterval = self.sampleInterval, sampleUnit = "US", totalSamples = self.totalSamples, ranges={self.channel:self.range})
         self.pico.init_buffersComplete()
 
     def update_plot(self):
@@ -281,7 +299,7 @@ class MainWindow(QMainWindow):
             # .plot returns a list of line <reference>s, as we're
             # only getting one we can take the first element.
             plot_refs = self.canvas.axes.plot(self.xdata, self.ydata, 'r')
-            self.canvas.axes.set_ylim(-40000, 40000)
+            self.canvas.axes.set_ylim(-33000, 33000)
             self.canvas.axes.set_xlabel('Time (s)')
             self.canvas.axes.set_ylabel('Charge (arb)')
             self._plot_ref = plot_refs[0]
@@ -401,8 +419,10 @@ class MainWindow(QMainWindow):
 
     def totalSample_changed(self, totalTime):
         self.totalSamples = int(totalTime*self.global_multiplier[self.totaltime_unit]/(self.sampleInterval*self.global_multiplier[self.sampleInterval_unit]))
+        self._plot_ref = None
         if self.PicoConnected:
             self.pico.reinititialiseChannels(self.buffersize, self.sampleInterval, self.totalSamples)
+            
 
     def sampleInterval_changed(self, sampleInterval):
         self.totalSamples = int(self.totalSamples*self.sampleInterval/sampleInterval)
@@ -460,6 +480,22 @@ class MainWindow(QMainWindow):
             time.sleep(5)
             self.DG822.turn_off(channel = 1)
             print('Drive off')
+
+    def channel_changed(self):
+        self.channel = self.canvas_drop_channel.currentText()
+        if self.PicoConnected:
+            print(self.canvas_drop_channel.currentIndex())
+            print(self.canvas_drop_channel.currentText())
+            self.pico.setChannel(channel = self.channel, channel_range = self.range, analogue_offset = 0.0)
+            self.pico.reinititialiseChannels(self.buffersize, self.sampleInterval, self.totalSamples)
+    
+    def range_changed(self):
+        self.range = self.canvas_drop_range.currentIndex()
+        if self.PicoConnected:
+            print(self.canvas_drop_range.currentIndex())
+            print(self.canvas_drop_range.currentText())
+            self.pico.setChannel(channel = self.channel, channel_range = self.range, analogue_offset = 0.0)
+            self.pico.reinititialiseChannels(self.buffersize, self.sampleInterval, self.totalSamples)
 
 app = QApplication(sys.argv)
 
