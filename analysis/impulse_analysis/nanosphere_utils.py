@@ -282,20 +282,46 @@ def deconvolve_force_amp(time, filtered_data, fit_window, make_plot=False, f0_gu
         if(len(ax_list) ==3):
             plt.sca(ax_list[2])
         else:
-            plt.figure(figsize=(12,4))
+            plt.figure(figsize=(9,3))
         plt.plot(curr_time, curr_filtered_data, label="Position")
         plt.ylabel("Z position [V]")
+        plt.xlabel("Time [s]")
         ax2 = plt.twinx()
-        ax2.plot(curr_time, force, 'orange', label='Force')
-        ax2.plot(curr_time[cent_time_idx-search_idx_buff+amp_idx], amp, 'orange', marker='o', markerfacecolor='white')
-        ax2.plot(curr_time, force_lp, 'red', label="Force (filt)")
-        ax2.plot(curr_time[cent_time_idx-search_idx_buff+amp_lp_idx], amp_lp, 'red', marker='o', markerfacecolor='white')
+        #ax2.plot(curr_time, force, 'orange', label='Force')
+        #ax2.plot(curr_time[cent_time_idx-search_idx_buff+amp_idx], amp, 'orange', marker='o', markerfacecolor='white')
+        ax2.plot(curr_time, force_lp, 'orange', label="Force (filt)")
+        ax2.plot(curr_time[cent_time_idx-search_idx_buff+amp_lp_idx], amp_lp, 'orange', marker='o', markerfacecolor='white')
         #ax2.plot(curr_time[:max_idx], force[:max_idx], 'green', label="Prepulse")
 
-        plt.xlabel("Time [s]")
-        plt.ylabel("Force [arb units]")
 
-        plt.legend(loc='upper left')
-        plt.title("Pulse at time $t = %.5f$ s, norm = %.2e"%(cent_time, force_norm))
+        plt.ylabel("Impulse [MeV/c]")
+
+        #plt.legend(loc='upper left')
+        #plt.title("Pulse at time $t = %.5f$ s, norm = %.2e"%(cent_time, force_norm))
+        plt.tight_layout()
 
     return amp, amp_lp, force_norm, bp[1], bp[2]
+
+
+def generate_simulated_event(force_noise_amp, num_samples, sample_time, 
+                             f0=65e3, gamma=100, imprecision_amp=0, impulse_amp=0):
+
+    freqs = np.fft.rfftfreq(num_samples, d=sample_time)
+    num_freqs = len(freqs)
+    
+    noise_tilde = force_noise_amp*(np.random.randn(num_freqs) + 1j*np.random.randn(num_freqs))
+
+    omega = 2*np.pi*freqs
+    omega0 = 2*np.pi*f0
+    trans_func = 1/(omega0**2 - omega**2 + 1j*omega*gamma) ## why do we need the plus sign here to get
+                                                           ## the right time direction after the ifft?
+
+    if(impulse_amp > 0):
+        force = np.zeros(num_samples)
+        force[int(len(force)/2)] = impulse_amp   
+        force_tilde = np.fft.rfft(force)
+        noise_tilde += force_tilde
+
+    noise = np.fft.irfft( noise_tilde * trans_func ) + imprecision_amp*np.random.randn(num_samples)
+
+    return noise
