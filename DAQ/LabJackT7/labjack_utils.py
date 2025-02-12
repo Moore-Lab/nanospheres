@@ -1,4 +1,5 @@
 from labjack import ljm
+import numpy as np
 
 class LabJack:
     def __init__(self):
@@ -27,7 +28,7 @@ class LabJack:
         numAddresses = len(channel_list)
         aScanList = ljm.namesToAddresses(numAddresses, aScanListNames)[0]
         scanRate = sample_rate
-        scansPerRead = int(sample_rate*numAddresses)
+        scansPerRead = int(sample_rate)
 
         self.numAddresses = numAddresses
 
@@ -83,10 +84,16 @@ class LabJack:
     def close(self):
         ljm.close(self.handle)
 
+    def write_analog_out(self, channel, voltage):
+        name = "DAC" + str(channel)
+        value = voltage 
+        ljm.eWriteName(self.handle, name, value) 
+
     def read_analog_in(self, num_scans=1):
 
         totScans = 0
         totSkip = 0
+        nChan = self.numAddresses
 
         data_out = []
 
@@ -95,7 +102,7 @@ class LabJack:
             ret = ljm.eStreamRead(self.handle)
             aData = ret[0]
             print("got data: ", len(aData))
-            scans = len(aData) / self.numAddresses
+            scans = len(aData) / nChan
             totScans += scans
             
             # Count the skipped samples which are indicated by -9999 values. Missed
@@ -104,6 +111,7 @@ class LabJack:
             curSkip = aData.count(-9999.0)
             totSkip += curSkip
         
+            aData = np.reshape(aData, (-1,nChan))
             data_out.append(aData)
 
         return data_out, totSkip
