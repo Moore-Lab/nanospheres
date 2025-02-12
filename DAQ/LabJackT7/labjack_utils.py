@@ -28,7 +28,7 @@ class LabJack:
         numAddresses = len(channel_list)
         aScanList = ljm.namesToAddresses(numAddresses, aScanListNames)[0]
         scanRate = sample_rate
-        scansPerRead = int(sample_rate)
+        scansPerRead = int(num_samps)
 
         self.numAddresses = numAddresses
 
@@ -102,8 +102,6 @@ class LabJack:
             ret = ljm.eStreamRead(self.handle)
             aData = ret[0]
             print("got data: ", len(aData))
-            scans = len(aData) / nChan
-            totScans += scans
             
             # Count the skipped samples which are indicated by -9999 values. Missed
             # samples occur after a device's stream buffer overflows and are
@@ -113,5 +111,7 @@ class LabJack:
         
             aData = np.reshape(aData, (-1,nChan))
             data_out.append(aData)
+
+            totScans += 1
 
         return data_out, totSkip
