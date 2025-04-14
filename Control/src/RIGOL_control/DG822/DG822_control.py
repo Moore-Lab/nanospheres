@@ -102,6 +102,29 @@ class FuncGen:
 
         cmd = f"{source}HARmonic:TYPE {type}"
         self.write(cmd)
+    
+    def change_amplitude(self, channel = 1, amp = 1):
+
+        source = f"SOURce{channel}:"
+
+        unit = "Vpp"
+        cmd = f"{source}VOLTage:LEVel {amp}{unit}"
+        self.write(cmd)
+
+    def change_offset(self, channel = 1, off = 1):
+
+        source = f"SOURce{channel}:"
+
+        unit = "V"
+        cmd = f"{source}VOLTage:OFFSet  {off}{unit}"
+        self.write(cmd)
+
+    def change_phase(self, channel = 1, phase = 0):
+
+        source = f"SOURce{channel}:"
+
+        cmd = f"{source}PHASe {phase}"
+        self.write(cmd)
 
     def turn_on(self, channel = 1):
         cmd = f"OUTPut{channel}:STATe {1}"
