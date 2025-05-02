@@ -15,7 +15,7 @@ Set parameters here
 
 # Channel E does not work... apparently it isn't a legit Key...
 
-channels = ['A'] #['A', 'B', 'C', 'D', 'F', 'G', 'H']
+channels = ['E'] #['A', 'B', 'C', 'D', 'F', 'G', 'H']
 
 # ranges: 0=10 mV, 1=20 mV, 2=50 mV, 3=100mV, 4=200 mV, 5=500 mV, 6=1000 mV, 7=2000 mV, 8=5000 mV, 9=10000 mV, 10=20000 mV, 11=50000 mV]
 channel_ranges = [6] # [0, 0, 0, 0, 0, 0, 0]
