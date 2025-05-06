@@ -17,6 +17,7 @@ class RedPitaya:
         self.rp.tx_txt('ACQ:DATA:FORMAT ASCII')
         self.rp.tx_txt('ACQ:DATA:UNITS VOLTS')
         self.rp.tx_txt('ACQ:DEC '+str(DEC))
+        self.rp.tx_txt('ACQ:SOUR'+str(channel)+':GAIN HV')
 
         self.rp.tx_txt('ACQ:TRIG:DLY 0')
 
