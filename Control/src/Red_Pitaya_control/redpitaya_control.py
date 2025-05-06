@@ -35,3 +35,7 @@ class RedPitaya:
         buff_string = buff_string.strip('{}\n\r').replace("  ", "").split(',')
         buff = list(map(float, buff_string))
         return buff
+
+    def close(self):
+        self.rp.close() 
+        print("Red Pitaya connection closed.")
